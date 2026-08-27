@@ -133,6 +133,8 @@ data/directory/.venv/bin/datatiles-serve \
 
 Open `http://127.0.0.1:8080/playground`. Exercise cursor inspection, a two-point profile, contour interval changes, texture and hillshade toggles, illumination and relief controls, 3D rotation/exaggeration, and a compound depth/class/shelter query. The [executed screenshots and their provenance](images/demo/README.md) show representative results.
 
+The browser URL MUST use `http://127.0.0.1:8080/playground`. Do not open `src/datatiles/profile-demo.html` directly: it is a server-side template containing a collection placeholder, and a `file://` page has no DataTiles API origin from which to load numeric arrays.
+
 ### 7. Retain machine-readable use-case evidence
 
 ```bash

@@ -33,6 +33,8 @@ datatiles-serve work/bay-of-naples.datatiles --port 8080
 
 Open `http://127.0.0.1:8080/playground`. Cursor values, profile charts, contours, predicate matches, shadow relief, depth/class texture, and the 3D wireframe are not stored portrayals: they are generated from decoded numeric arrays after each request or viewport change.
 
+Do not open `src/datatiles/profile-demo.html` directly in Safari or another browser. It is a server template, not a standalone file; `datatiles-serve` injects the collection identifier and provides the `/collections/...` analysis resources.
+
 Executed browser results, parameters, checksums, and limitations are retained in the [playground documentation](../../docs/playground.md) and [screenshot provenance register](../../docs/images/demo/README.md).
 
 The underlying evidence is available directly:

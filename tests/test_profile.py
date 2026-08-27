@@ -44,3 +44,6 @@ def test_playground_profile_projection_callback_is_unary():
     page=(ROOT/"src/datatiles/profile-demo.html").read_text()
     assert ".map(coordinate=>ol.proj.toLonLat(coordinate))" in page
     assert ".map(ol.proj.toLonLat)" not in page
+    assert "location.protocol==='file:'" in page
+    assert "This HTML file is a server-side template" in page
+    assert "http://127.0.0.1:8080/playground" in page
