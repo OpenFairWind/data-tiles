@@ -1,0 +1,13 @@
+
+[demo]
+Pillow==12.3.0
+
+[demo:python_version < "3.11"]
+numpy==2.2.6
+
+[demo:python_version >= "3.11"]
+numpy==2.3.5
+
+[test]
+pytest==8.4.2
+pytest-cov==7.0.0

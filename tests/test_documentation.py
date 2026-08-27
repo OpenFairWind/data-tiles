@@ -1,0 +1,58 @@
+import json
+import re
+import sqlite3
+import tomllib
+from pathlib import Path
+
+import datatiles
+
+ROOT=Path(__file__).resolve().parents[1]
+
+
+def test_local_markdown_links_resolve():
+    missing=[]
+    pattern=re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+    for document in ROOT.rglob("*.md"):
+        if any(part.startswith(".") for part in document.relative_to(ROOT).parts): continue
+        for target in pattern.findall(document.read_text()):
+            target=target.strip().split("#",1)[0]
+            if not target or target.startswith(("http://","https://","mailto:","sandbox:")): continue
+            path=(document.parent/target).resolve()
+            if not path.exists(): missing.append(f"{document.relative_to(ROOT)} -> {target}")
+    assert not missing,"broken local documentation links:\n"+"\n".join(missing)
+
+
+def test_release_documentation_versions_are_synchronized(tmp_path):
+    project=tomllib.loads((ROOT/"pyproject.toml").read_text())
+    version=project["project"]["version"]
+    assert datatiles.__version__==version
+    assert json.loads((ROOT/"demo/bay-of-naples/runtime-lock.json").read_text())["datatiles"]==version
+    for citation in (ROOT/"CITATION.cff",ROOT/"demo/bay-of-naples/CITATION.cff"):
+        assert f"version: {version}" in citation.read_text()
+    assert f"## {version} " in (ROOT/"CHANGELOG.md").read_text()
+
+
+def test_specification_schema_revision_matches_implementation(tmp_path):
+    path=tmp_path/"revision.datatiles"
+    with datatiles.DataTiles(path,create=True): pass
+    db=sqlite3.connect(path); revision=db.execute("PRAGMA user_version").fetchone()[0]; db.close()
+    assert f"schema revision {revision}" in (ROOT/"docs/specification.md").read_text().splitlines()[0]
+
+
+def test_agents_enforces_documentation_and_demo_coherence():
+    text=(ROOT/"AGENTS.md").read_text()
+    assert "All documentation MUST be correct and consistent with the current code and the normative specification" in text
+    assert "All demos MUST remain coherent with the code, documentation, and normative specification" in text
+
+
+def test_specification_is_self_sufficient_and_documents_fallback():
+    text=(ROOT/"docs/specification.md").read_text()
+    required=("Normative relational schema","Coordinate identity algorithm","DNT1 numeric-array encoding",
+              "Standalone physical-table export","Writer implementation recipe","Interoperability test vectors")
+    assert all(section in text for section in required)
+    assert "CREATE TABLE datatiles_dimensions" in text
+    assert "Reject DNT1" in text
+    readme=(ROOT/"README.md").read_text()
+    assert "How to cite DataTiles" in readme and "DYNAMO" in readme
+    assert (ROOT/"docs/mbtiles-fallback.md").is_file()
+    assert (ROOT/"docs/white-paper.md").is_file()

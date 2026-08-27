@@ -1,3 +1,28 @@
+Metadata-Version: 2.4
+Name: datatiles
+Version: 0.10.0
+Summary: MBTiles-compatible multidimensional raster-matrix and vector-feature storage
+Author: Raffaele Montella
+License-Expression: Apache-2.0
+Keywords: mbtiles,multidimensional,geospatial,raster,vector-tiles,FAIR-data,SQLite
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Topic :: Scientific/Engineering :: GIS
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+License-File: NOTICE
+Provides-Extra: demo
+Requires-Dist: numpy==2.2.6; python_version < "3.11" and extra == "demo"
+Requires-Dist: numpy==2.3.5; python_version >= "3.11" and extra == "demo"
+Requires-Dist: Pillow==12.3.0; extra == "demo"
+Provides-Extra: test
+Requires-Dist: pytest==8.4.2; extra == "test"
+Requires-Dist: pytest-cov==7.0.0; extra == "test"
+Dynamic: license-file
+
 # DataTiles
 
 **DataTiles is MBTiles for multidimensional data: an SQLite container that stores both raster matrices and vector feature tiles.** It is inspired by the Data Tiles/Diles research model and extends [MBTiles 1.3](https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md). A tile is addressed by the conventional spatial coordinate `(z, x, y)` plus an arbitrary typed set of scientific coordinates such as valid time, elevation, pressure level, ensemble member, model run, scenario, variable, or band.

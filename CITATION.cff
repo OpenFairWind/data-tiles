@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use DataTiles in research, cite this software release and the scientific-lineage papers relevant to your application as listed in README.md."
+title: "DataTiles: multidimensional raster and vector tile storage"
+type: software
+authors:
+  - family-names: Montella
+    given-names: Raffaele
+version: 0.10.0
+date-released: 2026-08-27
+license: Apache-2.0
+keywords:
+  - MBTiles
+  - multidimensional data
+  - raster matrix
+  - vector tiles
+  - FAIR data

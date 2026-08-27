@@ -1,0 +1,8 @@
+include README.md LICENSE LICENSE.md NOTICE CHANGELOG.md CITATION.cff CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md AGENTS.md
+recursive-include docs *.md
+recursive-include docs/tutorial/examples *.py
+recursive-include demo *.md *.json *.lock Makefile CITATION.cff
+recursive-include tests *.py
+recursive-include src/datatiles *.sql *.html
+prune demo/bay-of-naples/work
+global-exclude __pycache__ *.py[cod] .DS_Store

@@ -1,0 +1,5 @@
+[console_scripts]
+datatiles = datatiles.cli:main
+datatiles-demo = datatiles.demo:main
+datatiles-profile = datatiles.profile:main
+datatiles-serve = datatiles.server:main

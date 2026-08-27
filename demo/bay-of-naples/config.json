@@ -1,0 +1,60 @@
+{
+  "demo_id": "bay-of-naples-emodnet-v1",
+  "title": "Bay of Naples bathymetry and seafloor classification",
+  "bbox_wgs84": [13.70, 40.45, 14.55, 41.10],
+  "grid": {"width": 816, "height": 624},
+  "tiles": {"tile_size": 256, "minzoom": 8, "maxzoom": 11},
+  "sources": {
+    "bathymetry": {
+      "dataset": "EMODnet Digital Bathymetry DTM 2024",
+      "catalogue_uuid": "cf51df64-56f9-4a99-b1aa-36b8d7b743a1",
+      "catalogue_url": "https://emodnet.ec.europa.eu/geonetwork/srv/api/records/cf51df64-56f9-4a99-b1aa-36b8d7b743a1",
+      "service": "https://ows.emodnet-bathymetry.eu/wcs",
+      "service_type": "WCS-1.0.0",
+      "coverage": "emodnet:mean",
+      "release": "2024",
+      "license": "CC-BY-4.0",
+      "vertical_datum": "Lowest Astronomical Tide (LAT)",
+      "warning": "DO NOT USE FOR NAVIGATION"
+    },
+    "substrate": {
+      "dataset": "EMODnet Geology Seabed Substrate 1:100 000",
+      "catalogue_uuid": "6eaf4c6bf28815e973b9c60aab5734e3ef9cd9c4",
+      "catalogue_url": "https://emodnet.ec.europa.eu/geonetwork/srv/api/records/6eaf4c6bf28815e973b9c60aab5734e3ef9cd9c4",
+      "service": "https://drive.emodnet-geology.eu/geoserver/gtk/ows",
+      "service_type": "WFS-2.0.0",
+      "type_name": "gtk:seabed_substrate_100k",
+      "release": "2022-09-15",
+      "license": "EMODnet public-use terms; attribution required"
+    },
+    "habitat": {
+      "dataset": "EUSeaMap 2025 Broad-Scale Predictive Habitat Map for Europe",
+      "catalogue_uuid": "cec07b5e-3a9c-4492-b115-126a17c08697",
+      "catalogue_url": "https://gis.ices.dk/geonetwork/srv/api/records/cec07b5e-3a9c-4492-b115-126a17c08697",
+      "service": "https://ows.emodnet-seabedhabitats.eu/geoserver/emodnet_open/wfs",
+      "service_type": "WFS-2.0.0",
+      "type_name": "emodnet_open:eusm2025_eunis2007_full",
+      "release": "2025-11-11",
+      "license": "CC-BY-4.0"
+    }
+  },
+  "classification": {
+    "version": "datatiles-seafloor-v1",
+    "classes": {
+      "0": "unknown",
+      "1": "other",
+      "2": "mixed sediment",
+      "3": "mud",
+      "4": "sand",
+      "5": "gravel/coarse sediment",
+      "6": "rock/hard substrate",
+      "7": "algae/maerl/kelp",
+      "8": "seagrass/Posidonia",
+      "9": "coral/coralligenous/reef"
+    },
+    "precedence_high_to_low": ["coral/coralligenous/reef", "seagrass/Posidonia", "algae/maerl/kelp", "rock/hard substrate", "gravel/coarse sediment", "sand", "mud", "mixed sediment", "other", "unknown"]
+  },
+  "derived": {
+    "northwest_shelter_reach_cells": 32
+  }
+}
