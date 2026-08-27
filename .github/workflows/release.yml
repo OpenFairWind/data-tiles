@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]*.[0-9]*.[0-9]*"]
+  workflow_dispatch:
+    inputs:
+      publish_to_pypi:
+        description: Publish the validated artifacts to PyPI
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and validate release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install release environment
+        run: python -m pip install --upgrade pip build twine && python -m pip install -e '.[demo,test]'
+      - name: Validate tag and release metadata
+        if: github.ref_type == 'tag'
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+          from datatiles import __version__
+
+          tag = os.environ["RELEASE_TAG"]
+          if not re.fullmatch(r"v\d+\.\d+\.\d+", tag):
+              raise SystemExit(f"invalid release tag: {tag}")
+          if tag != f"v{__version__}":
+              raise SystemExit(f"tag {tag} does not match package version {__version__}")
+          changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          if not re.search(rf"^## {re.escape(__version__)}(?:\s|—)", changelog, re.MULTILINE):
+              raise SystemExit(f"CHANGELOG.md has no {__version__} release heading")
+          PY
+      - name: Run release quality gates
+        run: |
+          python -m compileall -q src tests
+          python -m pytest --cov=datatiles --cov-branch --cov-report=term-missing
+      - name: Build distributions and checksums
+        run: |
+          python -m build
+          python -m twine check dist/*
+          cd dist
+          sha256sum datatiles-* > SHA256SUMS
+      - uses: actions/upload-artifact@v5
+        with:
+          name: release-distributions
+          path: dist/
+          if-no-files-found: error
+
+  attest:
+    name: Attest build provenance
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: release-distributions
+          path: dist
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: "dist/datatiles-*"
+
+  github-release:
+    name: Create GitHub Release
+    if: github.ref_type == 'tag'
+    needs: [build, attest]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: release-distributions
+          path: dist
+      - name: Publish immutable release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" dist/* --repo "${{ github.repository }}" --verify-tag --generate-notes
+
+  publish-pypi:
+    name: Publish to PyPI
+    if: github.ref_type == 'tag' || inputs.publish_to_pypi
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/datatiles
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: release-distributions
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1

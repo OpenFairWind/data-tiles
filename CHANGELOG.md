@@ -2,6 +2,7 @@
 
 ## 0.10.0 — 2026-08-27
 
+- restores the documented CI and protected release workflows and excludes local IDE, build, and generated DataTiles artifacts from version control;
 - adds deterministic `export-mbtiles` fallback with physical standard tables for conservative OpenLayers adapters;
 - rejects DNT1 and other non-representable encodings instead of relabeling scientific bytes as map portrayals;
 - rewrites the normative specification as a self-contained human- and agent-implementable contract with schema, algorithms, limits, conformance classes, test vectors, and implementation recipe;

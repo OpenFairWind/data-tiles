@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install test environment
+        run: python -m pip install --upgrade pip && python -m pip install -e '.[demo,test]'
+      - name: Compile Python sources
+        run: python -m compileall -q src tests
+      - name: Run complete test suite
+        run: python -m pytest --cov=datatiles --cov-branch --cov-report=term-missing
+
+  browser-contracts:
+    name: Browser contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install test environment
+        run: python -m pip install --upgrade pip && python -m pip install -e '.[demo,test]'
+      - name: Parse playground JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("src/datatiles/profile-demo.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script(?:\s[^>]*)?>(.*?)</script>", html, re.DOTALL)
+          if not scripts:
+              raise SystemExit("profile-demo.html contains no inline JavaScript")
+          Path("/tmp/datatiles-playground.js").write_text("\n".join(scripts), encoding="utf-8")
+          PY
+          node --check /tmp/datatiles-playground.js
+      - name: Verify live-rendering contracts
+        run: python -m pytest tests/test_profile.py tests/test_surface.py tests/test_documentation.py
+
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Build and validate distributions
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check dist/*
+      - uses: actions/upload-artifact@v5
+        with:
+          name: python-distributions
+          path: dist/
+          if-no-files-found: error
+      - name: Install wheel in a clean environment
+        run: |
+          python -m venv /tmp/datatiles-wheel-test
+          /tmp/datatiles-wheel-test/bin/python -m pip install --no-deps dist/*.whl
+          /tmp/datatiles-wheel-test/bin/datatiles --help
+          /tmp/datatiles-wheel-test/bin/datatiles-serve --help
+
+  reproducibility:
+    name: Scientific fixture reproducibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install reproducibility environment
+        run: python -m pip install --upgrade pip && python -m pip install -e '.[demo,test]'
+      - name: Build the controlled fixture twice
+        run: python -m pytest tests/test_reproducible_demo.py tests/test_tutorial.py
+
+  ci-success:
+    name: CI success
+    if: always()
+    needs: [tests, browser-contracts, package, reproducibility]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every quality gate
+        env:
+          TESTS_RESULT: ${{ needs.tests.result }}
+          BROWSER_RESULT: ${{ needs.browser-contracts.result }}
+          PACKAGE_RESULT: ${{ needs.package.result }}
+          REPRODUCIBILITY_RESULT: ${{ needs.reproducibility.result }}
+        run: |
+          test "$TESTS_RESULT" = success
+          test "$BROWSER_RESULT" = success
+          test "$PACKAGE_RESULT" = success
+          test "$REPRODUCIBILITY_RESULT" = success

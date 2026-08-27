@@ -45,6 +45,18 @@ def test_agents_enforces_documentation_and_demo_coherence():
     assert "All demos MUST remain coherent with the code, documentation, and normative specification" in text
 
 
+def test_documented_ci_and_release_workflows_exist():
+    ci=(ROOT/".github/workflows/ci.yml").read_text()
+    release=(ROOT/".github/workflows/release.yml").read_text()
+    for gate in ("tests:", "browser-contracts:", "package:", "reproducibility:", "ci-success:"):
+        assert gate in ci
+    assert '["3.10", "3.11", "3.12", "3.13"]' in ci
+    assert "actions/attest-build-provenance@v3" in release
+    assert "pypa/gh-action-pypi-publish@release/v1" in release
+    assert "environment:\n      name: pypi" in release
+    assert "id-token: write" in release
+
+
 def test_specification_is_self_sufficient_and_documents_fallback():
     text=(ROOT/"docs/specification.md").read_text()
     required=("Normative relational schema","Coordinate identity algorithm","DNT1 numeric-array encoding",
