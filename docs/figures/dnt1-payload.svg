@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600" role="img" aria-labelledby="title desc">
+  <title id="title">DNT1 numeric tile layout and defensive decoding</title>
+  <desc id="desc">The byte stream contains a magic identifier, header length, canonical JSON header, and numeric payload. A defensive decoder validates limits and semantics before allocating and interpreting physical values.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#315b7d"/></marker>
+    <style>text{font-family:Inter,Arial,sans-serif;fill:#17324d}.title{font-size:30px;font-weight:700}.label{font-size:19px;font-weight:700}.body{font-size:16px}.small{font-size:14px}.frame{stroke:#315b7d;stroke-width:2}.arrow{stroke:#315b7d;stroke-width:3;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1200" height="600" fill="#ffffff"/>
+  <text x="600" y="48" text-anchor="middle" class="title">DNT1 numeric tile: bytes, validation, semantics</text>
+
+  <text x="60" y="102" class="label">Stored byte stream</text>
+  <rect x="60" y="125" width="120" height="110" fill="#dcecf7" class="frame"/>
+  <text x="120" y="170" text-anchor="middle" class="label">DNT1</text><text x="120" y="200" text-anchor="middle" class="small">4-byte magic</text>
+  <rect x="180" y="125" width="150" height="110" fill="#e8f3f8" class="frame"/>
+  <text x="255" y="170" text-anchor="middle" class="label">header size</text><text x="255" y="200" text-anchor="middle" class="small">unsigned length</text>
+  <rect x="330" y="125" width="420" height="110" fill="#fff5dc" class="frame"/>
+  <text x="540" y="162" text-anchor="middle" class="label">canonical JSON header</text>
+  <text x="540" y="192" text-anchor="middle" class="small">dtype · shape · byte order · nodata</text>
+  <text x="540" y="215" text-anchor="middle" class="small">scale · offset · unit · compression</text>
+  <rect x="750" y="125" width="390" height="110" fill="#eaf6ea" class="frame"/>
+  <text x="945" y="170" text-anchor="middle" class="label">numeric payload</text><text x="945" y="200" text-anchor="middle" class="small">row-major, exact expected length</text>
+
+  <line x1="600" y1="248" x2="600" y2="298" stroke="#315b7d" stroke-width="3"/><polygon points="594,298 600,310 606,298" fill="#315b7d"/>
+  <rect x="130" y="315" width="940" height="105" rx="12" fill="#f3f5f7" class="frame"/>
+  <text x="600" y="348" text-anchor="middle" class="label">Validate before allocation</text>
+  <text x="600" y="378" text-anchor="middle" class="body">magic and header limits · known keys · supported dtype and byte order · finite scale/offset</text>
+  <text x="600" y="404" text-anchor="middle" class="body">rank and dimension bounds · element count · decompressed-byte and ratio limits · exact payload size</text>
+
+  <line x1="600" y1="420" x2="600" y2="463" stroke="#315b7d" stroke-width="3"/><polygon points="594,463 600,475 606,463" fill="#315b7d"/>
+  <rect x="255" y="480" width="690" height="82" rx="12" fill="#f1ecfa" class="frame"/>
+  <text x="600" y="513" text-anchor="middle" class="label">Decoded physical array</text>
+  <text x="600" y="542" text-anchor="middle" class="body">physical = raw × scale + offset; nodata comparison remains in the raw domain</text>
+</svg>

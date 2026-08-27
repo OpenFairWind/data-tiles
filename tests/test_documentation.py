@@ -2,6 +2,7 @@ import json
 import re
 import sqlite3
 import tomllib
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import datatiles
@@ -55,6 +56,22 @@ def test_documented_ci_and_release_workflows_exist():
     assert "pypa/gh-action-pypi-publish@release/v1" in release
     assert "environment:\n      name: pypi" in release
     assert "id-token: write" in release
+
+
+def test_documentation_figures_are_accessible_svg_with_provenance():
+    figures=ROOT/"docs/figures"
+    expected={"datatiles-information-model.svg", "dnt1-payload.svg", "reproducibility-evidence-chain.svg"}
+    assert {path.name for path in figures.glob("*.svg")} == expected
+    register=(figures/"README.md").read_text()
+    namespace={"svg":"http://www.w3.org/2000/svg"}
+    for name in sorted(expected):
+        root=ET.parse(figures/name).getroot()
+        assert root.tag == "{http://www.w3.org/2000/svg}svg"
+        assert root.attrib["role"] == "img"
+        assert root.attrib["aria-labelledby"] == "title desc"
+        assert root.find("svg:title", namespace).text
+        assert root.find("svg:desc", namespace).text
+        assert name in register
 
 
 def test_specification_is_self_sufficient_and_documents_fallback():

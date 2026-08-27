@@ -6,6 +6,10 @@ This protocol reconstructs the Bay of Naples DataTiles object from the exact inp
 
 The demonstration integrates EMODnet DTM 2024 bathymetry, EMODnet Geology seabed substrate, and EUSeaMap 2025 habitat data. It emits continuous depth, source substrate, source habitat, fused seafloor class, and a derived north-west land-interception shelter proxy. It is a scientific software demonstration and must not be used for navigation.
 
+![Bay of Naples reproducibility and evidence chain](figures/reproducibility-evidence-chain.svg)
+
+*Figure 1. Exact reconstruction couples immutable inputs and runtime/configuration locks to deterministic derivation and byte-identity checks. Scientific verification and FAIR publication evidence are separate obligations; none of these checks makes the demonstration suitable for navigation.*
+
 ## Prerequisites
 
 - a POSIX-like environment with `make`;

@@ -1,5 +1,9 @@
 # Architecture
 
+![DataTiles information model](figures/datatiles-information-model.svg)
+
+*Figure 1. Conceptual addressing and compatibility projection. The diagram is explanatory; the normative relational structure and canonicalization algorithm are defined in `specification.md`.*
+
 The design separates four concerns:
 
 1. `metadata` describes the tileset using the MBTiles interface.

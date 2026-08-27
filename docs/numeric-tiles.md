@@ -2,6 +2,10 @@
 
 DNT1 stores a rectangular numeric array as data, not as a rendered picture. It is appropriate for bathymetry, elevation, forecast fields, probabilities, masks, and other scientific coverages.
 
+![DNT1 numeric tile layout and defensive decoding](figures/dnt1-payload.svg)
+
+*Figure 1. Schematic DNT1 field sequence and defensive decoding flow. Field widths are not proportional; `specification.md` defines the normative byte layout and limits.*
+
 ```python
 from datatiles import encode_numeric_tile, decode_numeric_tile
 

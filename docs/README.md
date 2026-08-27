@@ -2,6 +2,8 @@
 
 The documentation is organized by authority and purpose. `specification.md` is normative; code and examples must conform to it. The remaining documents are explanatory profiles, implementation guidance, or scientific protocols and must not silently redefine normative behavior.
 
+The [figure provenance register](figures/README.md) identifies the source documents, construction method, parameters, and interpretive scope of each explanatory SVG.
+
 | Document | Purpose |
 |---|---|
 | [Specification](specification.md) | normative container, dimensions, CRS, provenance, numeric payload, FAIR metadata, validation, and HTTP profile |

@@ -2,6 +2,7 @@
 
 ## 0.10.0 — 2026-08-27
 
+- adds accessible, reviewable SVG figures for the information model, DNT1 decoding, and reproducibility evidence chain, with an explicit figure-provenance register;
 - restores the documented CI and protected release workflows and excludes local IDE, build, and generated DataTiles artifacts from version control;
 - adds deterministic `export-mbtiles` fallback with physical standard tables for conservative OpenLayers adapters;
 - rejects DNT1 and other non-representable encodings instead of relabeling scientific bytes as map portrayals;
