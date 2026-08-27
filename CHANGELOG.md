@@ -2,6 +2,7 @@
 
 ## 0.10.0 — 2026-08-27
 
+- restores Python 3.10 CI compatibility by using the test-only `tomli` backport when `tomllib` is unavailable;
 - fixes two-point profile drawing by preventing the array index from being passed as an OpenLayers projection argument;
 - documents an executed end-to-end Bay of Naples acquisition, double build, local service, API evidence capture, and scientific-playground protocol with provenance-registered screenshots;
 - displays an actionable warning when the playground server template is opened directly through a `file://` URL and clarifies the required local HTTP launch procedure;
