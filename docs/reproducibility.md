@@ -31,6 +31,124 @@ python -c 'from datatiles.demo import runtime_versions; print(runtime_versions()
 
 Compare the printed object with `demo/bay-of-naples/runtime-lock.json`. The build intentionally stops on a difference because SQLite, zlib, or library variation can change container bytes even when decoded values agree.
 
+## Step-by-step execution in `data/`
+
+The following procedure keeps downloads, the isolated environment, generated containers, and use-case outputs under the ignored repository-local `data/directory/`. It MUST NOT overwrite the tracked configuration or retained runtime lock.
+
+### 1. Prepare an isolated workspace
+
+From the repository root:
+
+```bash
+mkdir -p data/directory
+cp demo/bay-of-naples/config.json data/directory/config.json
+cp demo/bay-of-naples/runtime-lock.json data/directory/runtime-lock.json
+python3.12 -m venv data/directory/.venv
+data/directory/.venv/bin/python -m pip install --upgrade pip
+data/directory/.venv/bin/python -m pip install -e '.[demo,test]'
+```
+
+The copied configuration remains checksum-identical to the tracked configuration. Keeping the runtime lock beside it is required because the pipeline resolves `runtime-lock.json` relative to `--config`.
+
+### 2. Enforce or explicitly delimit the runtime claim
+
+Inspect the active runtime before acquisition:
+
+```bash
+data/directory/.venv/bin/python -c \
+  'from datatiles.demo import runtime_versions; print(runtime_versions())'
+diff -u demo/bay-of-naples/runtime-lock.json data/directory/runtime-lock.json
+```
+
+For an exact reconstruction claim, the active versions MUST equal the retained lock. Stop when they differ; do not edit the tracked lock merely to make the gate pass.
+
+For a host-specific demonstration build only, replace the copied lock—never the tracked lock—with an explicit record of the active environment:
+
+```bash
+data/directory/.venv/bin/python -c \
+  "from pathlib import Path; from datatiles.demo import runtime_versions,write_json; write_json(Path('data/directory/runtime-lock.json'),runtime_versions())"
+```
+
+Such a run can verify internal checksums and byte identity across repeated builds on that host, but it is not the retained reference-runtime reconstruction. Its manifest and documentation MUST identify the actual runtime.
+
+### 3. Acquire and review immutable inputs
+
+```bash
+data/directory/.venv/bin/python -m datatiles.demo acquire \
+  --config data/directory/config.json \
+  --work data/directory/work
+```
+
+If the Python installation lacks a usable CA bundle, install `certifi` in the acquisition environment and set `SSL_CERT_FILE` to the path printed by `python -m certifi`; TLS verification MUST NOT be disabled.
+
+Before building, inspect:
+
+```bash
+find data/directory/work/raw -type f -maxdepth 1 -print
+data/directory/.venv/bin/python -m json.tool data/directory/work/source-lock.json
+data/directory/.venv/bin/python -m json.tool data/directory/work/acquisition-report.json
+```
+
+Confirm response types, catalogue identifiers, releases, licences, request URLs, sizes, and SHA-256 values. Archive the accepted `source-lock.json`. Live-service responses remain mutable even when their URLs do not change.
+
+### 4. Build and verify the DataTiles object
+
+```bash
+data/directory/.venv/bin/python -m datatiles.demo build \
+  --config data/directory/config.json \
+  --work data/directory/work
+data/directory/.venv/bin/python -m datatiles.demo verify \
+  --config data/directory/config.json \
+  --work data/directory/work
+```
+
+Review `artifact-manifest.json`, `bathymetry-preview.png`, and `seafloor-class-preview.png`. The previews are deterministic QA portrayals, not stored scientific variables. The primary products are `bay-of-naples.datatiles` and `bay-of-naples-evidence.zip`.
+
+### 5. Execute the double-build gate
+
+```bash
+shasum -a 256 \
+  data/directory/work/bay-of-naples.datatiles \
+  data/directory/work/bay-of-naples-evidence.zip \
+  > data/directory/first-build.sha256
+
+data/directory/.venv/bin/python -m datatiles.demo build \
+  --config data/directory/config.json \
+  --work data/directory/work
+data/directory/.venv/bin/python -m datatiles.demo verify \
+  --config data/directory/config.json \
+  --work data/directory/work
+shasum -a 256 -c data/directory/first-build.sha256
+```
+
+Both checks MUST report `OK`. A mismatch is pipeline drift and invalidates byte-identity claims until explained.
+
+### 6. Run the local scientific playground
+
+```bash
+data/directory/.venv/bin/datatiles-serve \
+  data/directory/work/bay-of-naples.datatiles \
+  --host 127.0.0.1 --port 8080
+```
+
+Open `http://127.0.0.1:8080/playground`. Exercise cursor inspection, a two-point profile, contour interval changes, texture and hillshade toggles, illumination and relief controls, 3D rotation/exaggeration, and a compound depth/class/shelter query. The [executed screenshots and their provenance](images/demo/README.md) show representative results.
+
+### 7. Retain machine-readable use-case evidence
+
+```bash
+mkdir -p data/directory/use-cases
+curl -o data/directory/use-cases/profile.json \
+  'http://127.0.0.1:8080/collections/bay-of-naples/profile?start=14.190,40.810&end=14.235,40.555&samples=256&f=json'
+curl -o data/directory/use-cases/profile.csv \
+  'http://127.0.0.1:8080/collections/bay-of-naples/profile?start=14.190,40.810&end=14.235,40.555&samples=256&f=csv'
+curl -o data/directory/use-cases/fair.json \
+  'http://127.0.0.1:8080/collections/bay-of-naples/fair'
+curl -o data/directory/use-cases/surface.json \
+  'http://127.0.0.1:8080/collections/bay-of-naples/surface?bbox=13.8,40.5,14.5,41.0&width=48&height=48'
+```
+
+Record the container checksum, source-lock checksum, runtime, request parameters, response checksums, test log, and screenshot hashes. The FAIR report distinguishes container checks from external publication obligations and MUST NOT be presented as an opaque certification score.
+
 ## First acquisition and review
 
 ```bash

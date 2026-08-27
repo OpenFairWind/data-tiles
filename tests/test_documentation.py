@@ -74,6 +74,21 @@ def test_documentation_figures_are_accessible_svg_with_provenance():
         assert name in register
 
 
+def test_demo_screenshots_are_registered_jpeg_evidence():
+    images=ROOT/"docs/images/demo"
+    expected={"playground-cursor-observation.jpg", "playground-depth-profile.jpg",
+              "playground-live-surface.jpg", "playground-spatial-query.jpg"}
+    register=(images/"README.md").read_text()
+    playground=(ROOT/"docs/playground.md").read_text()
+    for name in expected:
+        payload=(images/name).read_bytes()
+        assert payload.startswith(b"\xff\xd8\xff")
+        assert name in register
+        assert f"images/demo/{name}" in playground
+    assert "generated container SHA-256" in register
+    assert "not stored scientific variables" in register
+
+
 def test_specification_is_self_sufficient_and_documents_fallback():
     text=(ROOT/"docs/specification.md").read_text()
     required=("Normative relational schema","Coordinate identity algorithm","DNT1 numeric-array encoding",

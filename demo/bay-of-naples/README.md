@@ -19,6 +19,8 @@ make all
 
 `make acquire` records byte-level SHA-256 checksums and exact HTTP request URLs in `work/source-lock.json`. Mutable HTTP response information is kept separately in `acquisition-report.json`, so it cannot perturb the scientific lock. `make build` consumes only the locked raw files. `make verify` validates every raw and derived checksum and the SQLite/foreign-key invariants.
 
+For a complete repository-local execution that keeps the isolated environment, downloads, generated object, double-build checks, API outputs, and screenshots under the ignored `data/directory/`, follow the normative-supporting [step-by-step reproducibility guide](../../docs/reproducibility.md#step-by-step-execution-in-data). The guide explicitly separates an exact retained-runtime reconstruction from a host-specific demonstration build; changing the tracked runtime lock to bypass a mismatch is prohibited.
+
 The build also creates `bay-of-naples-evidence.zip`, a deterministically ordered and timestamp-normalized evidence bundle containing the configuration, source lock, raw source subsets, artifact manifest, and final DataTiles database.
 
 Two deterministic visual checks, `bathymetry-preview.png` and `seafloor-class-preview.png`, are generated from the same numeric grids and included in the evidence bundle. They are QA previews, not additional source data.
@@ -30,6 +32,8 @@ datatiles-serve work/bay-of-naples.datatiles --port 8080
 ```
 
 Open `http://127.0.0.1:8080/playground`. Cursor values, profile charts, contours, predicate matches, shadow relief, depth/class texture, and the 3D wireframe are not stored portrayals: they are generated from decoded numeric arrays after each request or viewport change.
+
+Executed browser results, parameters, checksums, and limitations are retained in the [playground documentation](../../docs/playground.md) and [screenshot provenance register](../../docs/images/demo/README.md).
 
 The underlying evidence is available directly:
 

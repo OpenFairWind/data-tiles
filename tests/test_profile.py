@@ -1,7 +1,11 @@
 import json
+from pathlib import Path
 
 from datatiles import DataTiles, encode_numeric_tile
 from datatiles.profile import profile_csv, profile_svg, sample_profile
+
+
+ROOT=Path(__file__).resolve().parents[1]
 
 
 def _profile_store(tmp_path):
@@ -34,3 +38,9 @@ def test_profile_decodes_numeric_dimensions_on_demand(tmp_path):
     svg = profile_svg(result)
     assert svg.startswith('<svg xmlns="http://www.w3.org/2000/svg"')
     assert result["profile_sha256"] in svg
+
+
+def test_playground_profile_projection_callback_is_unary():
+    page=(ROOT/"src/datatiles/profile-demo.html").read_text()
+    assert ".map(coordinate=>ol.proj.toLonLat(coordinate))" in page
+    assert ".map(ol.proj.toLonLat)" not in page
