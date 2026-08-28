@@ -32,12 +32,13 @@ def _common_zoom(store: DataTiles, set_ids: list[int], requested: int | None) ->
 class _PointSampler:
     def __init__(self, store: DataTiles, zoom: int|None=None):
         self.store=store; self.resolved=[]; self.cache={}
-        for name in ("depth_below_lat_m","seafloor_class","northwest_wind_shelter"):
+        for name in ("depth_below_lat_m","bathymetry_source","seafloor_class","northwest_wind_shelter"):
             try:self.resolved.append((name,*_resolve_variable(store,name)))
             except DataTilesError:
-                if name!="northwest_wind_shelter":raise
+                if name not in ("bathymetry_source","northwest_wind_shelter"):raise
         self.zoom=_common_zoom(store,[item[1] for item in self.resolved],zoom)
         self.legend=json.loads(dict(store.db.execute("SELECT name,value FROM metadata")).get("datatiles:classes","{}"))
+        self.source_legend=json.loads(dict(store.db.execute("SELECT name,value FROM metadata")).get("datatiles:bathymetry_source_classes","{}"))
 
     def __call__(self,lon:float,lat:float)->dict[str,Any]:
         values={}; evidence={}
@@ -47,6 +48,8 @@ class _PointSampler:
         return {"type":"DataTilesPointObservation","longitude":lon,"latitude":lat,"zoom":self.zoom,
                 "depth_m":values.get("depth_below_lat_m"),"class_code":code,
                 "class_name":self.legend.get(str(code),"unknown"),
+                "bathymetry_source_code":int(values.get("bathymetry_source") or 0),
+                "bathymetry_source_name":self.source_legend.get(str(int(values.get("bathymetry_source") or 0)),"unknown"),
                 "northwest_wind_sheltered":bool(values.get("northwest_wind_shelter")),
                 "evidence":evidence,"data_source":"on-demand DNT1 numeric tile decoding"}
 
@@ -61,18 +64,22 @@ def surface_grid(store: DataTiles, bbox: tuple[float,float,float,float], *, widt
     if not 8 <= width <= 128 or not 8 <= height <= 128:
         raise DataTilesError("surface width and height must be between 8 and 128")
     west,south,east,north=_valid_bbox(bbox)
-    sample=_PointSampler(store,zoom); depth=[]; classes=[]
+    sample=_PointSampler(store,zoom); depth=[]; classes=[]; sources=[]; shelter=[]
     for row in range(height):
-        lat=north-(row+.5)*(north-south)/height; depth_row=[]; class_row=[]
+        lat=north-(row+.5)*(north-south)/height; depth_row=[]; class_row=[]; source_row=[]; shelter_row=[]
         for col in range(width):
             lon=west+(col+.5)*(east-west)/width; value=sample(lon,lat)
             d=value["depth_m"]
             depth_row.append(None if d is None or not math.isfinite(float(d)) else round(float(d),6))
             class_row.append(int(value["class_code"]))
-        depth.append(depth_row); classes.append(class_row)
+            source_row.append(int(value["bathymetry_source_code"]))
+            shelter_row.append(bool(value["northwest_wind_sheltered"]))
+        depth.append(depth_row); classes.append(class_row); sources.append(source_row); shelter.append(shelter_row)
     payload={"bbox":[west,south,east,north],"width":width,"height":height,"zoom":sample.zoom,
              "row_order":"north-to-south","depth_m":depth,"seafloor_class":classes,
-             "class_legend":sample.legend,"data_source":"on-demand DNT1 numeric tile decoding"}
+             "bathymetry_source":sources,"northwest_wind_shelter":shelter,
+             "class_legend":sample.legend,"bathymetry_source_legend":sample.source_legend,
+             "data_source":"on-demand DNT1 numeric tile decoding"}
     payload["surface_sha256"]=hashlib.sha256(json.dumps(payload,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
     return payload
 
@@ -103,7 +110,7 @@ def query_areas(store: DataTiles, bbox: tuple[float,float,float,float], *, min_d
 
 
 def contours(store: DataTiles, bbox: tuple[float,float,float,float], *, interval: float=10,
-             cells: int=64, zoom: int|None=None) -> dict[str,Any]:
+             cells: int=64, zoom: int|None=None, adaptive: bool=False) -> dict[str,Any]:
     if interval<=0: raise DataTilesError("interval must be positive")
     if not 8<=cells<=128: raise DataTilesError("cells must be between 8 and 128")
     west,south,east,north=_valid_bbox(bbox); grid=[]; sample=_PointSampler(store,zoom)
@@ -112,10 +119,18 @@ def contours(store: DataTiles, bbox: tuple[float,float,float,float], *, interval
         grid.append([sample(west+c*(east-west)/cells,lat)["depth_m"] for c in range(cells+1)])
     valid=[v for row in grid for v in row if v is not None]
     if not valid: return {"type":"FeatureCollection","features":[]}
-    levels=range(int(math.ceil(min(valid)/interval)),int(math.floor(max(valid)/interval))+1); features=[]
+    minimum=max(0,float(min(valid))); maximum=float(max(valid))
+    if adaptive:
+        shallow=interval; middle=max(10.0,interval*2); deep=max(50.0,interval*10)
+        candidate=(list(_contour_levels(minimum,min(maximum,50),shallow))+
+                   list(_contour_levels(max(minimum,50),min(maximum,200),middle))+
+                   list(_contour_levels(max(minimum,200),maximum,deep)))
+        levels=sorted(set(candidate))
+    else: levels=[multiple*interval for multiple in range(int(math.ceil(minimum/interval)),int(math.floor(maximum/interval))+1)]
+    features=[]
     edges=((0,1),(1,2),(2,3),(3,0))
-    for multiple in levels:
-        level=multiple*interval; segments=[]
+    for level in levels:
+        segments=[]
         for r in range(cells):
             for c in range(cells):
                 vals=(grid[r][c],grid[r][c+1],grid[r+1][c+1],grid[r+1][c])
@@ -128,9 +143,17 @@ def contours(store: DataTiles, bbox: tuple[float,float,float,float], *, interval
                         crossings.append([west+x/cells*(east-west),north-y/cells*(north-south)])
                 if len(crossings)==2: segments.append(crossings)
                 elif len(crossings)==4: segments.extend((crossings[:2],crossings[2:]))
-        if segments: features.append({"type":"Feature","geometry":{"type":"MultiLineString","coordinates":segments},"properties":{"depth_m":level}})
+        if segments: features.append({"type":"Feature","geometry":{"type":"MultiLineString","coordinates":segments},
+                                      "properties":{"depth_m":level,"contour_class":"major" if level%50==0 else "index" if level%10==0 else "minor"}})
     return {"type":"FeatureCollection","features":features,"datatiles:interval_m":interval,
+            "datatiles:spacing":"adaptive: interval to 50 m; max(10,2× interval) to 200 m; max(50,10× interval) beyond 200 m" if adaptive else "uniform",
             "datatiles:dataSource":"live marching-squares derivation from decoded depth tiles"}
+
+
+def _contour_levels(lower: float, upper: float, spacing: float):
+    if upper<lower:return
+    first=int(math.ceil(lower/spacing)); last=int(math.floor(upper/spacing))
+    for multiple in range(first,last+1):yield multiple*spacing
 
 
 def stored_vector_features(store: DataTiles, bbox: tuple[float,float,float,float], *,

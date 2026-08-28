@@ -60,7 +60,7 @@ curl -s 'http://127.0.0.1:8080/collections/tutorial/contours?bbox=13,40,15,41&ce
 curl -s 'http://127.0.0.1:8080/collections/tutorial/query?bbox=13,40,15,41&cells=12&min_depth=5&max_depth=15&classes=sand,mud' | python -m json.tool
 ```
 
-Open `http://127.0.0.1:8080/playground`. Move the cursor, draw a transect, pan to recompute contours and hillshade, inspect depth/seabed texture, rotate the 3D surface, and run a compound depth/class query. The north-west shelter option is meaningful only for a dataset that includes the derived shelter variable, such as the Bay of Naples demo.
+Open `http://127.0.0.1:8080/playground`. Move the cursor, draw a transect, pan to recompute adaptive contours and hillshade, inspect depth/seabed texture, rotate the 3D surface, and run a compound depth/class query. The north-west shelter option is meaningful only for a dataset that includes the derived shelter variable, such as the From Gaeta to Maratea demo.
 
 ## Verification and reflection
 

@@ -38,9 +38,10 @@ datatiles = "datatiles.cli:main"
 datatiles-serve = "datatiles.server:main"
 datatiles-demo = "datatiles.demo:main"
 datatiles-profile = "datatiles.profile:main"
+datatiles-static-demo = "datatiles.static_demo:main"
 
 [tool.setuptools.package-data]
-datatiles = ["schema.sql", "profile-demo.html"]
+datatiles = ["schema.sql", "profile-demo.html", "static-demo.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

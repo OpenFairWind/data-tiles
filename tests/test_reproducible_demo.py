@@ -41,9 +41,9 @@ def test_two_builds_are_byte_identical(tmp_path):
         for key,name in files.items()}}
     write_json(work/"source-lock.json",lock)
     build(config_path,work)
-    first=(sha256(work/"bay-of-naples.datatiles"),sha256(work/"bay-of-naples-evidence.zip"))
+    first=(sha256(work/"gaeta-to-maratea.datatiles"),sha256(work/"gaeta-to-maratea-evidence.zip"))
     verify(config_path,work)
     build(config_path,work)
-    second=(sha256(work/"bay-of-naples.datatiles"),sha256(work/"bay-of-naples-evidence.zip"))
+    second=(sha256(work/"gaeta-to-maratea.datatiles"),sha256(work/"gaeta-to-maratea-evidence.zip"))
     verify(config_path,work)
     assert first==second

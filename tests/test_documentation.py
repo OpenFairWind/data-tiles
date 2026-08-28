@@ -31,8 +31,8 @@ def test_release_documentation_versions_are_synchronized(tmp_path):
     project=tomllib.loads((ROOT/"pyproject.toml").read_text())
     version=project["project"]["version"]
     assert datatiles.__version__==version
-    assert json.loads((ROOT/"demo/bay-of-naples/runtime-lock.json").read_text())["datatiles"]==version
-    for citation in (ROOT/"CITATION.cff",ROOT/"demo/bay-of-naples/CITATION.cff"):
+    assert json.loads((ROOT/"demo/from-gaeta-to-maratea/runtime-lock.json").read_text())["datatiles"]==version
+    for citation in (ROOT/"CITATION.cff",ROOT/"demo/from-gaeta-to-maratea/CITATION.cff"):
         assert f"version: {version}" in citation.read_text()
     assert f"## {version} " in (ROOT/"CHANGELOG.md").read_text()
 

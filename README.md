@@ -59,11 +59,13 @@ datatiles export-mbtiles ocean.datatiles ocean.mbtiles
 
 The exporter preserves TMS rows and BLOB bytes and creates physical `metadata` and `tiles` tables. DNT1 numeric arrays are never dishonestly relabeled as pictures: create a documented, provenance-linked portrayal first. See the [fallback contract](docs/mbtiles-fallback.md).
 
-## Bay of Naples reference demo
+## From Gaeta to Maratea reference demo
 
-[`demo/bay-of-naples`](demo/bay-of-naples) provides a fully locked workflow using EMODnet DTM 2024 bathymetry, EMODnet Geology seabed substrate, and EUSeaMap 2025 habitats. It produces numeric depth, substrate, habitat, and deterministically fused seafloor-class tiles together with an immutable evidence bundle.
+[`demo/from-gaeta-to-maratea`](demo/from-gaeta-to-maratea) provides the fully locked “From Gaeta to Maratea” production workflow over `12.85–15.71851° E, 39.99852–41.21408° N`. The widened western extent includes Palmarola, Ponza, Zannone, Ventotene, and Santo Stefano. It applies finest-finite JammeGaia22 bathymetry with EMODnet DTM 2024 fallback, then applies the independently acquired GSHHG 2.3.7 full-resolution land mask. It retains categorical source coverage, integrates EMODnet Geology substrate, EUSeaMap habitats, and stored OpenStreetMap seamark vectors, and produces an immutable evidence bundle. The playground is a verification client for those results, not the production process itself.
 
 The playground proves that DataTiles contains queryable multidimensional data rather than a pyramid of finished pictures. It offers independent depth-color, seabed-classification, shadow-relief, isoline, smart-depth-sample, and stored-nautical-vector layers; all depth products are derived from coincident DNT1 arrays, while OpenStreetMap seamark features are explicitly stored as tiled GeoJSON. Run the server and open `/playground`.
+
+The release workspace may also contain `dist/from-gaeta-to-maratea.datatiles` and `dist/from-gaeta-to-maratea-static.zip`. The ZIP is a Safari-compatible static distribution with the complete DataTiles container, a checksum-identified 128 × 72 numeric/categorical browser surface embedded in the generated HTML, stored nautical vectors, and pinned OpenLayers assets. After extraction, `index.html` works directly through `file://`; `open-demo.command` remains available for testing through a loopback static server. Depth and seabed portrayal, shadow relief, adaptive contours, smart depth labels, source coverage, profiles, cursor inspection, the north-west shelter predicate, highlighted compound queries, and the rotatable 3D mesh are computed client-side. It includes no pre-rendered image tiles.
 
 Repository guidance is in [`AGENTS.md`](AGENTS.md), and the Markdown license notice is in [`LICENSE.md`](LICENSE.md). The complete Apache-2.0 legal text remains in `LICENSE`.
 
@@ -73,16 +75,16 @@ Pull requests run the complete suite on Python 3.10–3.13, validate playground 
 
 ```bash
 python -m pip install -e '.[demo]'
-cd demo/bay-of-naples
+cd demo/from-gaeta-to-maratea
 make all
 ```
 
 The demo and source products are for research and visualization only and must not be used for navigation.
 
-After building the Bay of Naples artifact, start its server and open the numeric transect demo:
+After building the Gaeta-to-Maratea artifact, start its server and open the numeric transect demo:
 
 ```bash
-datatiles-serve work/bay-of-naples.datatiles --port 8080
+datatiles-serve work/gaeta-to-maratea.datatiles --port 8080
 # Open http://127.0.0.1:8080/playground
 ```
 
@@ -91,7 +93,7 @@ The user supplies two longitude/latitude points. DataTiles resolves the depth an
 An offline SVG can be produced without the HTTP service:
 
 ```bash
-datatiles-profile work/bay-of-naples.datatiles \
+datatiles-profile work/gaeta-to-maratea.datatiles \
   14.190,40.810 14.235,40.555 --samples 256 \
   --format svg --output depth-profile.svg
 ```

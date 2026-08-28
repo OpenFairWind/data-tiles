@@ -6,7 +6,7 @@
     <style>text{font-family:Inter,Arial,sans-serif;fill:#17324d}.title{font-size:30px;font-weight:700}.label{font-size:19px;font-weight:700}.body{font-size:16px}.small{font-size:14px}.box{stroke:#315b7d;stroke-width:2}.arrow{stroke:#315b7d;stroke-width:3;fill:none;marker-end:url(#arrow)}.dash{stroke:#7a5aa6;stroke-width:3;stroke-dasharray:8 6;fill:none;marker-end:url(#arrow)}</style>
   </defs>
   <rect width="1200" height="700" fill="#ffffff"/>
-  <text x="600" y="48" text-anchor="middle" class="title">Bay of Naples reproducibility and evidence chain</text>
+  <text x="600" y="48" text-anchor="middle" class="title">From Gaeta to Maratea reproducibility and evidence chain</text>
 
   <rect x="45" y="105" width="250" height="190" rx="12" fill="#e8f3f8" class="box"/>
   <text x="170" y="142" text-anchor="middle" class="label">Locked inputs</text>

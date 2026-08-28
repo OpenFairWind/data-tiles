@@ -1,21 +1,41 @@
 {
-  "demo_id": "bay-of-naples-emodnet-v1",
-  "title": "Bay of Naples bathymetry and seafloor classification",
-  "bbox_wgs84": [13.70, 40.45, 14.55, 41.10],
-  "grid": {"width": 816, "height": 624},
-  "tiles": {"tile_size": 256, "minzoom": 8, "maxzoom": 11},
+  "demo_id": "from-gaeta-to-maratea-v3",
+  "title": "From Gaeta to Maratea",
+  "output": "gaeta-to-maratea.datatiles",
+  "bbox_wgs84": [12.85, 39.99852, 15.71851, 41.21408],
+  "grid": {"width": 2754, "height": 1167},
+  "bathymetry_grid": {"width": 5508, "height": 2334, "target_spacing_m": 50},
+  "tiles": {"tile_size": 256, "minzoom": 8, "maxzoom": 12},
   "sources": {
+    "jamme": {
+      "dataset": "JammeGaia22 multi-resolution bathymetry grids",
+      "catalogue_uuid": "doi:10.60521/331667",
+      "catalogue_url": "https://doi.org/10.60521/331667",
+      "release": "2022 version 1",
+      "license": "CC-BY-4.0",
+      "vertical_datum": "not harmonized with EMODnet LAT; source limitation retained",
+      "priority": "finest finite cell, then progressively coarser finite cells"
+    },
+    "land": {
+      "dataset": "GSHHG 2.3.7 full-resolution shoreline polygons",
+      "catalogue_uuid": "doi:10.1029/96JB00104",
+      "catalogue_url": "https://doi.org/10.1029/96JB00104",
+      "release": "2.3.7",
+      "license": "GNU LGPL; attribution to Wessel and Smith",
+      "role": "authoritative land/ocean mask; full-resolution L1 polygons"
+    },
     "bathymetry": {
       "dataset": "EMODnet Digital Bathymetry DTM 2024",
       "catalogue_uuid": "cf51df64-56f9-4a99-b1aa-36b8d7b743a1",
       "catalogue_url": "https://emodnet.ec.europa.eu/geonetwork/srv/api/records/cf51df64-56f9-4a99-b1aa-36b8d7b743a1",
+      "doi": "https://doi.org/10.12770/cf51df64-56f9-4a99-b1aa-36b8d7b743a1",
       "service": "https://ows.emodnet-bathymetry.eu/wcs",
       "service_type": "WCS-1.0.0",
       "coverage": "emodnet:mean",
       "release": "2024",
       "license": "CC-BY-4.0",
       "vertical_datum": "Lowest Astronomical Tide (LAT)",
-      "warning": "DO NOT USE FOR NAVIGATION"
+      "warning": "NAUTICAL-CHART AID ONLY; NOT AN OFFICIAL OR SOLE SOURCE FOR NAVIGATION"
     },
     "substrate": {
       "dataset": "EMODnet Geology Seabed Substrate 1:100 000",

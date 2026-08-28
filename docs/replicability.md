@@ -15,9 +15,15 @@ Replication asks whether an independent team can apply the declared method to in
 7. **Validate independently.** Check structural conformance, random decoded tiles, spatial alignment, range and nodata fractions, class totals, boundary cases, and reference points. Compare predeclared tolerances rather than tuning them after inspection.
 8. **Publish FAIRly.** Deposit data and metadata, register the PID, expose standardized HTTPS/OpenAPI resources, provide licence and access rights, retain tombstone metadata, and publish source, configuration, locks, tests, and evidence.
 
+## Permission and licence gate
+
+Acquisition MUST be an explicit, auditable human decision. Before a downloader is run, the operator MUST visit the authoritative landing page, identify the release and licence, determine whether login, click-through terms, institutional authorization, or provider permission is required, and accept those conditions outside the software where necessary. The operator SHOULD retain a private ledger containing the dataset PID, landing page, licence URI/version, accepted terms revision, acceptance timestamp, responsible person or organization, permission/ticket identifier, requested spatial extent, request URL, and resulting SHA-256. Secrets, session cookies, personal data, and licence tokens MUST NOT enter configuration files, logs, source locks, or published evidence bundles.
+
+The command-line acquisition component MAY consume already authorized URLs or local frozen assets, but MUST NOT bypass access controls or infer consent. If terms are unavailable, ambiguous, incompatible with redistribution, or not accepted, acquisition MUST stop. Publication metadata MUST distinguish open access, authenticated access, embargo, and restricted redistribution. Reusers remain responsible for satisfying upstream attribution and share-alike obligations; the DataTiles licence does not replace source licences.
+
 ## Minimal adaptation of the Naples workflow
 
-Copy `demo/bay-of-naples/config.json` to a new demo directory and change `demo_id`, title, bounding box, grid/tile parameters, sources, release identifiers, and classification profile. Implement domain-specific readers/classifiers rather than encoding assumptions in configuration strings. Run acquisition once to create a candidate source lock; review the bytes and catalogue evidence before accepting that lock. Build twice and require identical outputs. Then execute independent scientific checks against source-native tools.
+Copy `demo/from-gaeta-to-maratea/config.json` to a new demo directory and change `demo_id`, title, bounding box, grid/tile parameters, sources, release identifiers, and classification profile. Complete the permission and licence gate first. Implement domain-specific readers/classifiers rather than encoding assumptions in configuration strings. Run acquisition once to create a candidate source lock; review the bytes and catalogue evidence before accepting that lock. Build twice and require identical outputs. Then execute independent scientific checks against source-native tools.
 
 ## Acceptance matrix
 

@@ -66,7 +66,10 @@ def handler_for(path: Path):
                                   {"rel":"data","href":"/collections","type":"application/json"},
                                   {"rel":"service-desc","href":"/api","type":"application/vnd.oai.openapi+json;version=3.0"}]})
                 if parts in (["demo","profile"],["playground"]):
-                    html=importlib.resources.files("datatiles").joinpath("profile-demo.html").read_text().replace("__COLLECTION__",collection)
+                    html=importlib.resources.files("datatiles").joinpath("profile-demo.html").read_text()
+                    center=metadata.get("center","0,0,0").split(",")
+                    html=(html.replace("__COLLECTION__",collection).replace("__TITLE__",metadata.get("name",collection))
+                          .replace("__CENTER_LON__",center[0]).replace("__CENTER_LAT__",center[1]))
                     return _body(self,200,html,"text/html; charset=utf-8")
                 if parts == ["conformance"]: return _json(self, 200, {"conformsTo": CONFORMANCE})
                 if parts == ["api"]: return _json(self, 200, self.openapi(collection, dims))
@@ -110,7 +113,8 @@ def handler_for(path: Path):
                         bounds=tuple(float(v) for v in query.get("bbox",[metadata.get("bounds","")])[0].split(","))
                         if len(bounds)!=4: raise ValueError("bbox requires west,south,east,north")
                         cells=int(query.get("cells",["64"])[0]); zoom=int(query["zoom"][0]) if "zoom" in query else None
-                        if parts[-1]=="contours": result=contours(store,bounds,interval=float(query.get("interval",["10"])[0]),cells=cells,zoom=zoom)
+                        if parts[-1]=="contours": result=contours(store,bounds,interval=float(query.get("interval",["5"])[0]),cells=cells,zoom=zoom,
+                                                                 adaptive=query.get("adaptive",["false"])[0].lower() in ("1","true","yes"))
                         else: result=query_areas(store,bounds,min_depth=float(query["min_depth"][0]) if "min_depth" in query else None,
                             max_depth=float(query["max_depth"][0]) if "max_depth" in query else None,
                             classes=set(query.get("classes",[""])[0].split(",")),sheltered_by=query.get("sheltered_by",[None])[0],cells=cells,zoom=zoom)
@@ -195,7 +199,7 @@ def handler_for(path: Path):
                         f"/collections/{collection}/point":{"get":{"parameters":[{"name":"coords","in":"query","required":True,"schema":{"type":"string"}}],"responses":{"200":{"description":"decoded coincident values"}}}},
                         f"/collections/{collection}/contents":{"get":{"responses":{"200":{"description":"raster and vector content profiles"}}}},
                         f"/collections/{collection}/surface":{"get":{"parameters":[{"name":"bbox","in":"query","required":True,"schema":{"type":"string"}},{"name":"width","in":"query","schema":{"type":"integer","minimum":8,"maximum":128}},{"name":"height","in":"query","schema":{"type":"integer","minimum":8,"maximum":128}}],"responses":{"200":{"description":"coincident numeric depth and seabed grid"}}}},
-                        f"/collections/{collection}/contours":{"get":{"parameters":[{"name":"bbox","in":"query","required":True,"schema":{"type":"string"}},{"name":"interval","in":"query","schema":{"type":"number","default":10}}],"responses":{"200":{"description":"live derived GeoJSON contours"}}}},
+                        f"/collections/{collection}/contours":{"get":{"parameters":[{"name":"bbox","in":"query","required":True,"schema":{"type":"string"}},{"name":"interval","in":"query","schema":{"type":"number","default":5}},{"name":"adaptive","in":"query","schema":{"type":"boolean","default":False}}],"responses":{"200":{"description":"live derived GeoJSON contours"}}}},
                         f"/collections/{collection}/nautical-items":{"get":{"parameters":[{"name":"bbox","in":"query","required":True,"schema":{"type":"string"}}],"responses":{"200":{"description":"stored OpenStreetMap seamark vector features"}}}},
                         f"/collections/{collection}/query":{"get":{"parameters":[{"name":"bbox","in":"query","required":True,"schema":{"type":"string"}},{"name":"min_depth","in":"query","schema":{"type":"number"}},{"name":"max_depth","in":"query","schema":{"type":"number"}},{"name":"classes","in":"query","schema":{"type":"string"}},{"name":"sheltered_by","in":"query","schema":{"type":"string","enum":["nw"]}}],"responses":{"200":{"description":"predicate-selected GeoJSON areas"}}}},
                         f"/collections/{collection}/fair":{"get":{"responses":{"200":{"description":"FAIR-by-design assessment report"}}}}}}

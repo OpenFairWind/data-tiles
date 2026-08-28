@@ -41,7 +41,7 @@ python docs/tutorial/examples/build_tutorial.py build tutorial-b.datatiles
 sha256sum tutorial-a.datatiles tutorial-b.datatiles
 ```
 
-SQLite files may differ byte-for-byte when page history or library behavior changes even if their logical content is equivalent. The production Bay of Naples pipeline adds stable insertion order, vacuuming, runtime locks, canonical manifests, fixed ZIP metadata, and double-build tests. Compare `docs/reproducibility.md` with `docs/replicability.md` and classify every step as input locking, deterministic transformation, scientific validation, or publication evidence.
+SQLite files may differ byte-for-byte when page history or library behavior changes even if their logical content is equivalent. The production From Gaeta to Maratea pipeline adds stable insertion order, vacuuming, runtime locks, canonical manifests, fixed ZIP metadata, and double-build tests. Compare `docs/reproducibility.md` with `docs/replicability.md` and classify every step as input locking, deterministic transformation, scientific validation, or publication evidence.
 
 Before publishing your own dataset:
 

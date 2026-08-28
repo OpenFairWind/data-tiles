@@ -1,12 +1,12 @@
-# Reproducing the Bay of Naples demonstration
+# Reproducing the From Gaeta to Maratea demonstration
 
 ## Claim and scope
 
-This protocol reconstructs the Bay of Naples DataTiles object from the exact input bytes, canonical configuration, and locked runtime. Success means that the resulting SQLite file and evidence ZIP have the recorded SHA-256 values. Reacquiring nominally identical data from mutable network services is a *replication* unless the acquired bytes match the source lock.
+This protocol reconstructs the “From Gaeta to Maratea” DataTiles object from the exact input bytes, canonical configuration, and locked runtime. Its CRS84 extent is west `12.85°`, south `39.99852°`, east `15.71851°`, north `41.21408°`; this includes Palmarola, Ponza, Zannone, Ventotene, and Santo Stefano. Success means that the resulting SQLite file and evidence ZIP have the recorded SHA-256 values. Reacquiring nominally identical data from mutable network services is a *replication* unless the acquired bytes match the source lock.
 
-The demonstration integrates EMODnet DTM 2024 bathymetry, EMODnet Geology seabed substrate, EUSeaMap 2025 habitat data, and checksum-locked OpenStreetMap `seamark:*` vectors used by the OpenSeaMap ecosystem. It emits continuous depth, source substrate, source habitat, fused seafloor class, a derived north-west land-interception shelter proxy, and stored tiled GeoJSON nautical features. It is a scientific software demonstration and must not be used for navigation.
+The demonstration integrates the native-resolution regional EMODnet DTM 2024 acquisition and OpenStreetMap navigation-context acquisition described by [Mediterranean Chart Builder](https://github.com/OpenFairWind/mediterranean-chart-builder), together with EMODnet Geology seabed substrate and EUSeaMap 2025 habitat data. It emits continuous depth, source substrate, source habitat, fused seafloor class, a derived north-west land-interception shelter proxy, and stored tiled GeoJSON `seamark:*` features. It is a scientific software demonstration and must not be used for navigation.
 
-![Bay of Naples reproducibility and evidence chain](figures/reproducibility-evidence-chain.svg)
+![From Gaeta to Maratea reproducibility and evidence chain](figures/reproducibility-evidence-chain.svg)
 
 *Figure 1. Exact reconstruction couples immutable inputs and runtime/configuration locks to deterministic derivation and byte-identity checks. Scientific verification and FAIR publication evidence are separate obligations; none of these checks makes the demonstration suitable for navigation.*
 
@@ -29,7 +29,7 @@ python -m pip install -e '.[demo,test]'
 python -c 'from datatiles.demo import runtime_versions; print(runtime_versions())'
 ```
 
-Compare the printed object with `demo/bay-of-naples/runtime-lock.json`. The build intentionally stops on a difference because SQLite, zlib, or library variation can change container bytes even when decoded values agree.
+Compare the printed object with `demo/from-gaeta-to-maratea/runtime-lock.json`. The build intentionally stops on a difference because SQLite, zlib, or library variation can change container bytes even when decoded values agree.
 
 ## Step-by-step execution in `data/`
 
@@ -41,8 +41,8 @@ From the repository root:
 
 ```bash
 mkdir -p data/directory
-cp demo/bay-of-naples/config.json data/directory/config.json
-cp demo/bay-of-naples/runtime-lock.json data/directory/runtime-lock.json
+cp demo/from-gaeta-to-maratea/config.json data/directory/config.json
+cp demo/from-gaeta-to-maratea/runtime-lock.json data/directory/runtime-lock.json
 python3.12 -m venv data/directory/.venv
 data/directory/.venv/bin/python -m pip install --upgrade pip
 data/directory/.venv/bin/python -m pip install -e '.[demo,test]'
@@ -57,7 +57,7 @@ Inspect the active runtime before acquisition:
 ```bash
 data/directory/.venv/bin/python -c \
   'from datatiles.demo import runtime_versions; print(runtime_versions())'
-diff -u demo/bay-of-naples/runtime-lock.json data/directory/runtime-lock.json
+diff -u demo/from-gaeta-to-maratea/runtime-lock.json data/directory/runtime-lock.json
 ```
 
 For an exact reconstruction claim, the active versions MUST equal the retained lock. Stop when they differ; do not edit the tracked lock merely to make the gate pass.
@@ -91,7 +91,23 @@ data/directory/.venv/bin/python -m json.tool data/directory/work/acquisition-rep
 
 Confirm response types, catalogue identifiers, releases, licences, request URLs, sizes, and SHA-256 values. Archive the accepted `source-lock.json`. Live-service responses remain mutable even when their URLs do not change.
 
-### 4. Build and verify the DataTiles object
+### 4. Import the frozen Mediterranean Chart Builder acquisitions
+
+Set `MEDCHART_DATA` to the chart-builder `data/` directory. The import validates the SHA-256 values in its acquisition manifests, copies the native EMODnet TIFF and OpenStreetMap Overpass response into the isolated work area, and replaces their live-download entries in `source-lock.json`:
+
+```bash
+MEDCHART_DATA=/path/to/mediterranean-chart-builder/data
+data/directory/.venv/bin/python -m datatiles.demo import-medchart \
+  --config data/directory/config.json \
+  --work data/directory/work \
+  --source-root "$MEDCHART_DATA"
+```
+
+The EMODnet file contains the chart-builder's 0.2° acquisition halo. The build crops it by its manifest CRS84 bounds to the exact publication extent before deterministic nearest-neighbour sampling. `medchart-import.json` records the upstream manifest identities and is included in the evidence ZIP.
+
+The chart-builder also supplies checksum-locked JammeGaia22 multiresolution UTM grids and the GSHHG 2.3.7 archive. Import reprojects the Jamme grids by declared nearest-neighbour sampling, selects the finest finite Jamme value per output cell, uses EMODnet only where no Jamme value is finite, and then applies rasterized GSHHG full-resolution L1 polygons as the land mask. Cells outside Jamme coverage retain the approximately 115 m native EMODnet limitation and MUST NOT be interpreted as harbor-scale soundings. No pre-rendered chart-builder MBTiles portrayal is used as scientific input.
+
+### 5. Build and verify the DataTiles object
 
 ```bash
 data/directory/.venv/bin/python -m datatiles.demo build \
@@ -102,14 +118,14 @@ data/directory/.venv/bin/python -m datatiles.demo verify \
   --work data/directory/work
 ```
 
-Review `artifact-manifest.json`, `bathymetry-preview.png`, and `seafloor-class-preview.png`. The previews are deterministic QA portrayals, not stored scientific variables. The primary products are `bay-of-naples.datatiles` and `bay-of-naples-evidence.zip`.
+Review `artifact-manifest.json`, `bathymetry-preview.png`, and `seafloor-class-preview.png`. The previews are deterministic QA portrayals, not stored scientific variables. The primary products are `gaeta-to-maratea.datatiles` and `gaeta-to-maratea-evidence.zip`.
 
-### 5. Execute the double-build gate
+### 6. Execute the double-build gate
 
 ```bash
 shasum -a 256 \
-  data/directory/work/bay-of-naples.datatiles \
-  data/directory/work/bay-of-naples-evidence.zip \
+  data/directory/work/gaeta-to-maratea.datatiles \
+  data/directory/work/gaeta-to-maratea-evidence.zip \
   > data/directory/first-build.sha256
 
 data/directory/.venv/bin/python -m datatiles.demo build \
@@ -123,34 +139,34 @@ shasum -a 256 -c data/directory/first-build.sha256
 
 Both checks MUST report `OK`. A mismatch is pipeline drift and invalidates byte-identity claims until explained.
 
-### 6. Run the local scientific playground
+### 7. Run the local scientific playground
 
 ```bash
 data/directory/.venv/bin/datatiles-serve \
-  data/directory/work/bay-of-naples.datatiles \
+  data/directory/work/gaeta-to-maratea.datatiles \
   --host 127.0.0.1 --port 8080
 ```
 
-Open `http://127.0.0.1:8080/playground`. Exercise cursor inspection, a two-point profile, isoline interval changes, each of the six independent layer switches (depth colors, seabed classification, shadow relief, depth isolines, smart depth samples, and stored OpenSeaMap vector items), illumination and relief controls, 3D rotation/exaggeration, and a compound depth/class/shelter query. Confirm through the collection contents and `/nautical-items` response that the nautical layer is tiled GeoJSON stored in the generated DataTiles file. The [executed screenshots and their provenance](images/demo/README.md) show representative results.
+Open `http://127.0.0.1:8080/playground`. Exercise cursor inspection, a two-point profile, isoline interval changes, each of the seven independent layer switches (depth colors, seabed classification, shadow relief, depth isolines, smart depth samples, bathymetry source coverage, and stored OpenSeaMap vector items), illumination and relief controls, 3D rotation/exaggeration, and a compound depth/class/shelter query. Confirm through the collection contents and `/nautical-items` response that the nautical layer is tiled GeoJSON stored in the generated DataTiles file. The [executed screenshots and their provenance](images/demo/README.md) show representative results.
 
 The browser URL MUST use `http://127.0.0.1:8080/playground`. Do not open `src/datatiles/profile-demo.html` directly: it is a server-side template containing a collection placeholder, and a `file://` page has no DataTiles API origin from which to load numeric arrays.
 
-### 7. Retain machine-readable use-case evidence
+### 8. Retain machine-readable use-case evidence
 
 ```bash
 mkdir -p data/directory/use-cases
 curl -o data/directory/use-cases/profile.json \
-  'http://127.0.0.1:8080/collections/bay-of-naples/profile?start=14.190,40.810&end=14.235,40.555&samples=256&f=json'
+  'http://127.0.0.1:8080/collections/gaeta-to-maratea/profile?start=14.190,40.810&end=14.235,40.555&samples=256&f=json'
 curl -o data/directory/use-cases/profile.csv \
-  'http://127.0.0.1:8080/collections/bay-of-naples/profile?start=14.190,40.810&end=14.235,40.555&samples=256&f=csv'
+  'http://127.0.0.1:8080/collections/gaeta-to-maratea/profile?start=14.190,40.810&end=14.235,40.555&samples=256&f=csv'
 curl -o data/directory/use-cases/fair.json \
-  'http://127.0.0.1:8080/collections/bay-of-naples/fair'
+  'http://127.0.0.1:8080/collections/gaeta-to-maratea/fair'
 curl -o data/directory/use-cases/surface.json \
-  'http://127.0.0.1:8080/collections/bay-of-naples/surface?bbox=13.8,40.5,14.5,41.0&width=48&height=48'
+  'http://127.0.0.1:8080/collections/gaeta-to-maratea/surface?bbox=13.8,40.5,14.5,41.0&width=96&height=72'
 curl -o data/directory/use-cases/nautical-items.geojson \
-  'http://127.0.0.1:8080/collections/bay-of-naples/nautical-items?bbox=13.8,40.5,14.5,41.0'
+  'http://127.0.0.1:8080/collections/gaeta-to-maratea/nautical-items?bbox=13.8,40.5,14.5,41.0'
 curl -o data/directory/use-cases/contents.json \
-  'http://127.0.0.1:8080/collections/bay-of-naples/contents'
+  'http://127.0.0.1:8080/collections/gaeta-to-maratea/contents'
 ```
 
 Record the container checksum, source-lock checksum, runtime, request parameters, response checksums, test log, and screenshot hashes. The FAIR report distinguishes container checks from external publication obligations and MUST NOT be presented as an opaque certification score.
@@ -158,7 +174,7 @@ Record the container checksum, source-lock checksum, runtime, request parameters
 ## First acquisition and review
 
 ```bash
-cd demo/bay-of-naples
+cd demo/from-gaeta-to-maratea
 make acquire
 ```
 
@@ -169,7 +185,7 @@ For controlled replay, place the accepted raw files in `work/raw/` with the acce
 ```bash
 make build
 make verify
-sha256sum work/bay-of-naples.datatiles work/bay-of-naples-evidence.zip
+sha256sum work/gaeta-to-maratea.datatiles work/gaeta-to-maratea-evidence.zip
 ```
 
 For reacquisition against an accepted lock, use the CLI’s `--expect-lock` option. Incoming bytes are downloaded separately and promoted only when every checksum matches. Differences are preserved as a new candidate snapshot and must not silently overwrite the reference.

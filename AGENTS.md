@@ -2,6 +2,18 @@
 
 This repository is the reference implementation and specification of DataTiles. Preserve the distinction between numeric or categorical scientific arrays and pre-rendered map imagery. New visual products must be reproducible derivations from stored values and must identify their input variables, algorithms, parameters, coordinate reference systems, and provenance.
 
+## Project targets
+
+1. Provide a formal DataTiles specification that is both human-readable and directly implementable by coding agents.
+2. Provide command-line-invokable Python components to acquire, prepare, process, validate, and assemble specification-compliant DataTiles.
+3. Provide step-by-step documentation for independently replicating the reference demonstration.
+4. Provide an OpenLayers client that browses and verifies DataTiles by rendering stored numeric arrays and vector features live with declared nautical symbols.
+5. Provide a reusable JavaScript/Node.js library for integrating DataTiles rendering into third-party applications.
+6. Use C-MAP Chart Explorer as a qualitative reference for visualization hierarchy and interaction only; do not copy its data, symbols, or pixels.
+7. Do not pre-render image tiles. Portrayal MUST be performed client-side from stored numeric arrays and vector features.
+
+The reference nautical-map demonstration is an uncertified aid and MUST NOT be represented as an official chart, an ENC/ECDIS substitute, or a sole source for navigation.
+
 ## Engineering invariants
 
 - Preserve the conventional MBTiles `metadata` table and four-column `tiles` compatibility view.
@@ -10,7 +22,7 @@ This repository is the reference implementation and specification of DataTiles. 
 - Store Web Mercator rows in TMS order; perform XYZ conversion only at interfaces.
 - Decode `DNT1` defensively and retain dtype, shape, byte order, nodata, scale, offset, unit, and compression semantics.
 - Do not silently render, resample, classify, fuse, or transform scientific values. Record each such operation as provenance.
-- Keep source acquisition immutable and checksum-locked. The Bay of Naples products are explicitly not for navigation.
+- Keep source acquisition immutable and checksum-locked. The Gaeta-to-Maratea products are explicitly not for navigation.
 - Maintain FAIR metadata and validation. Stable identifiers, license, provenance, CRS, dimensions, units, checksums, and access links are functional requirements.
 - Keep the core Python package dependency-free. Optional demo and test dependencies belong in their declared extras.
 

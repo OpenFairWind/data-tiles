@@ -2,7 +2,16 @@
 
 ## 0.10.0 — 2026-08-27
 
-- adds six independent playground layer switches for depth color, seabed classification, shadow relief, isolines, smart depth samples, and stored OpenSeaMap-ecosystem vector items;
+- adds a command-line static-demo exporter, a Safari-compatible client-side numeric/vector portrayal, the full scientific playground toolset (relief, contours, smart labels, profile, compound query, and interactive 3D mesh), embedded checksum-identified data for direct `file://` use, an offline OpenLayers bundle, and an optional loopback-only launcher;
+- renames the reference workflow directory to `demo/from-gaeta-to-maratea/` and aligns its default artifact identifier and filenames;
+- expands the reference use case to the explicitly bounded Gaeta-to-Maratea corridor and retains approximately native 1/16 arc-minute EMODnet sampling through Web Mercator zoom 12;
+- widens the western publication bound to `12.85° E` to include Palmarola, Ponza, Zannone, Ventotene, and Santo Stefano while preserving sampling density and rejecting insufficient frozen regional inputs;
+- adds a checksum-validated Mediterranean Chart Builder import for its native EMODnet and OpenStreetMap acquisitions, crops the acquisition halo geospatially, and documents the remaining shallow-water resolution limit;
+- imports and checksum-locks all seven JammeGaia22 grids, applies finest-finite selection with EMODnet fallback, and enforces a separately derived GSHHG 2.3.7 full-resolution land mask;
+- documents the explicit permission/licence acceptance gate, private acquisition ledger, credential exclusion, FAIR access conditions, and Gaeta-to-Maratea island scope;
+- improves shallow-water portrayal with bounded 96 × 72 surface sampling, adaptive contour spacing and hierarchy, a restrained scientific depth palette, lighter seabed patterns, reduced relief saturation, and shallow-prioritized depth labels;
+- adds seven independent playground layer switches for depth color, seabed classification, shadow relief, isolines, smart depth samples, bathymetry source coverage, and stored OpenSeaMap-ecosystem vector items;
+- recaptures every documented playground screenshot from the widened Gaeta-to-Maratea container and records current image, container, source-lock, runtime, profile, and query evidence;
 - checksum-locks OpenStreetMap `seamark:*` acquisition, stores its deterministic CRS84 GeoJSON tiles under an explicit vector content profile, and exposes a bounded stored-feature endpoint without substituting a remote portrayal;
 - restores Python 3.10 CI compatibility by using the test-only `tomli` backport when `tomllib` is unavailable;
 - fixes two-point profile drawing by preventing the array index from being passed as an OpenLayers projection argument;

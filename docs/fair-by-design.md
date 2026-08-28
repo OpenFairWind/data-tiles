@@ -26,7 +26,9 @@ FAIR is an architectural property of DataTiles, not a label applied after public
 
 A release MUST fail its FAIR gate when it lacks an identifier, licence, access-rights statement, resolvable CRS, unit for a dimensional physical quantity, source attribution, source checksum, provenance activity, version, or machine-readable API link. The gate SHOULD also test vocabulary URI resolution, catalogue registration, metadata persistence policy, checksum retrieval, OpenAPI validity, and independent decoding of a sample DNT1 tile.
 
-The Bay of Naples demonstration is a reference publication profile. Its evidence ZIP contains the raw responses needed for exact replay; the public DataTiles object contains the source graph and tile-level lineage needed for inspection. Derived `northwest_wind_shelter` values are explicitly identified as a deterministic land-interception exposure proxy and must not be confused with a validated wind-wave shelter model.
+The From Gaeta to Maratea demonstration is a reference publication profile. Its evidence ZIP contains the raw responses needed for exact replay; the public DataTiles object contains the source graph and tile-level lineage needed for inspection. Derived `northwest_wind_shelter` values are explicitly identified as a deterministic land-interception exposure proxy and must not be confused with a validated wind-wave shelter model.
+
+FAIR access does not imply frictionless or anonymous download. A provider may require authentication, explicit permission, or acceptance of licence terms. Acquisition tooling MUST preserve those access conditions in metadata without publishing credentials, and MUST stop when the responsible operator has not established authority to retrieve or redistribute the source. The private acceptance record and the public source/provenance record serve different purposes and MUST remain separate.
 
 ## FAIR maturity
 

@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this demo, cite DataTiles and all EMODnet source datasets listed in config.json."
-title: "DataTiles Bay of Naples bathymetry and seafloor reference demo"
+title: "DataTiles From Gaeta to Maratea bathymetry and seafloor reference demo"
 type: software
 authors:
   - family-names: Montella
