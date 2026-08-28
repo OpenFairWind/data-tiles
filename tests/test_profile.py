@@ -19,6 +19,12 @@ def _profile_store(tmp_path):
     store.put(0, 0, 0, depth, {"variable":"depth_below_lat_m", "release":"fixture"}, xyz=True)
     store.put(0, 0, 0, classes, {"variable":"seafloor_class", "release":"fixture"}, xyz=True)
     store.put(0, 0, 0, shelter, {"variable":"northwest_wind_shelter", "release":"fixture"}, xyz=True)
+    nautical=json.dumps({"type":"FeatureCollection","features":[{"type":"Feature","id":"node/1",
+        "properties":{"seamark:type":"buoy_lateral","name":"Fixture buoy"},
+        "geometry":{"type":"Point","coordinates":[0,0]}}]},sort_keys=True,separators=(",",":")).encode()
+    store.put(0,0,0,nautical,{"variable":"openseamap_items","release":"fixture"},xyz=True,
+              data_type="vector",media_type="application/geo+json",encoding="GeoJSON",
+              schema={"geometry_types":["Point"],"property_prefix":"seamark:","crs":"OGC:CRS84"})
     store.db.execute("INSERT INTO metadata(name,value) VALUES (?,?)", (
         "datatiles:classes", json.dumps({"3":"rock", "4":"sand"}, separators=(",", ":"))))
     store.db.commit()
@@ -47,3 +53,7 @@ def test_playground_profile_projection_callback_is_unary():
     assert "location.protocol==='file:'" in page
     assert "This HTML file is a server-side template" in page
     assert "http://127.0.0.1:8080/playground" in page
+    for label in ("Depth colors","Sea bed classification","Shadow relief","Depth isolines",
+                  "Smartly distributed depth samples","OpenSeaMap vector items"):
+        assert label in page
+    assert "loadNautical" in page and "renderSamples" in page

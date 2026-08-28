@@ -4,7 +4,7 @@
 
 This protocol reconstructs the Bay of Naples DataTiles object from the exact input bytes, canonical configuration, and locked runtime. Success means that the resulting SQLite file and evidence ZIP have the recorded SHA-256 values. Reacquiring nominally identical data from mutable network services is a *replication* unless the acquired bytes match the source lock.
 
-The demonstration integrates EMODnet DTM 2024 bathymetry, EMODnet Geology seabed substrate, and EUSeaMap 2025 habitat data. It emits continuous depth, source substrate, source habitat, fused seafloor class, and a derived north-west land-interception shelter proxy. It is a scientific software demonstration and must not be used for navigation.
+The demonstration integrates EMODnet DTM 2024 bathymetry, EMODnet Geology seabed substrate, EUSeaMap 2025 habitat data, and checksum-locked OpenStreetMap `seamark:*` vectors used by the OpenSeaMap ecosystem. It emits continuous depth, source substrate, source habitat, fused seafloor class, a derived north-west land-interception shelter proxy, and stored tiled GeoJSON nautical features. It is a scientific software demonstration and must not be used for navigation.
 
 ![Bay of Naples reproducibility and evidence chain](figures/reproducibility-evidence-chain.svg)
 
@@ -131,7 +131,7 @@ data/directory/.venv/bin/datatiles-serve \
   --host 127.0.0.1 --port 8080
 ```
 
-Open `http://127.0.0.1:8080/playground`. Exercise cursor inspection, a two-point profile, contour interval changes, texture and hillshade toggles, illumination and relief controls, 3D rotation/exaggeration, and a compound depth/class/shelter query. The [executed screenshots and their provenance](images/demo/README.md) show representative results.
+Open `http://127.0.0.1:8080/playground`. Exercise cursor inspection, a two-point profile, isoline interval changes, each of the six independent layer switches (depth colors, seabed classification, shadow relief, depth isolines, smart depth samples, and stored OpenSeaMap vector items), illumination and relief controls, 3D rotation/exaggeration, and a compound depth/class/shelter query. Confirm through the collection contents and `/nautical-items` response that the nautical layer is tiled GeoJSON stored in the generated DataTiles file. The [executed screenshots and their provenance](images/demo/README.md) show representative results.
 
 The browser URL MUST use `http://127.0.0.1:8080/playground`. Do not open `src/datatiles/profile-demo.html` directly: it is a server-side template containing a collection placeholder, and a `file://` page has no DataTiles API origin from which to load numeric arrays.
 
@@ -147,6 +147,10 @@ curl -o data/directory/use-cases/fair.json \
   'http://127.0.0.1:8080/collections/bay-of-naples/fair'
 curl -o data/directory/use-cases/surface.json \
   'http://127.0.0.1:8080/collections/bay-of-naples/surface?bbox=13.8,40.5,14.5,41.0&width=48&height=48'
+curl -o data/directory/use-cases/nautical-items.geojson \
+  'http://127.0.0.1:8080/collections/bay-of-naples/nautical-items?bbox=13.8,40.5,14.5,41.0'
+curl -o data/directory/use-cases/contents.json \
+  'http://127.0.0.1:8080/collections/bay-of-naples/contents'
 ```
 
 Record the container checksum, source-lock checksum, runtime, request parameters, response checksums, test log, and screenshot hashes. The FAIR report distinguishes container checks from external publication obligations and MUST NOT be presented as an opaque certification score.

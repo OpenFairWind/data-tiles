@@ -2,6 +2,8 @@
 
 ## 0.10.0 — 2026-08-27
 
+- adds six independent playground layer switches for depth color, seabed classification, shadow relief, isolines, smart depth samples, and stored OpenSeaMap-ecosystem vector items;
+- checksum-locks OpenStreetMap `seamark:*` acquisition, stores its deterministic CRS84 GeoJSON tiles under an explicit vector content profile, and exposes a bounded stored-feature endpoint without substituting a remote portrayal;
 - restores Python 3.10 CI compatibility by using the test-only `tomli` backport when `tomllib` is unavailable;
 - fixes two-point profile drawing by preventing the array index from being passed as an OpenLayers projection argument;
 - documents an executed end-to-end Bay of Naples acquisition, double build, local service, API evidence capture, and scientific-playground protocol with provenance-registered screenshots;

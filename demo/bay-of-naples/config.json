@@ -36,6 +36,15 @@
       "type_name": "emodnet_open:eusm2025_eunis2007_full",
       "release": "2025-11-11",
       "license": "CC-BY-4.0"
+    },
+    "nautical": {
+      "dataset": "OpenStreetMap seamark-tagged features used by OpenSeaMap",
+      "catalogue_uuid": "openstreetmap-seamark-overpass-snapshot",
+      "catalogue_url": "https://api.openstreetmap.org/api/0.6/capabilities",
+      "service": "https://overpass-api.de/api/interpreter",
+      "service_type": "Overpass-QL",
+      "release": "acquisition snapshot",
+      "license": "Open Database License 1.0; attribution to OpenStreetMap contributors"
     }
   },
   "classification": {

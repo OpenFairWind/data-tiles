@@ -63,7 +63,7 @@ The exporter preserves TMS rows and BLOB bytes and creates physical `metadata` a
 
 [`demo/bay-of-naples`](demo/bay-of-naples) provides a fully locked workflow using EMODnet DTM 2024 bathymetry, EMODnet Geology seabed substrate, and EUSeaMap 2025 habitats. It produces numeric depth, substrate, habitat, and deterministically fused seafloor-class tiles together with an immutable evidence bundle.
 
-The playground proves that DataTiles contains queryable multidimensional data rather than a pyramid of finished pictures. It derives cursor observations, profiles, contours, compound predicates, depth-colored seabed textures, dynamic hillshade, and a rotatable 3D bathymetric mesh directly from coincident DNT1 depth and classification arrays. Run the server and open `/playground`.
+The playground proves that DataTiles contains queryable multidimensional data rather than a pyramid of finished pictures. It offers independent depth-color, seabed-classification, shadow-relief, isoline, smart-depth-sample, and stored-nautical-vector layers; all depth products are derived from coincident DNT1 arrays, while OpenStreetMap seamark features are explicitly stored as tiled GeoJSON. Run the server and open `/playground`.
 
 Repository guidance is in [`AGENTS.md`](AGENTS.md), and the Markdown license notice is in [`LICENSE.md`](LICENSE.md). The complete Apache-2.0 legal text remains in `LICENSE`.
 

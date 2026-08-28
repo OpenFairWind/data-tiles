@@ -1,10 +1,11 @@
 # Bay of Naples reference demo
 
-This workflow creates `bay-of-naples.datatiles` from three authoritative source products:
+This workflow creates `bay-of-naples.datatiles` from three scientific source products and one community vector source:
 
 1. EMODnet DTM 2024 mean water depth relative to Lowest Astronomical Tide.
 2. EMODnet Geology 1:100,000 seabed substrate polygons using the harmonized Folk classification.
 3. EUSeaMap 2025 EUNIS 2007 habitat polygons, used to retain biogenic habitats such as coralligenous reef, algae/maerl/kelp, and Posidonia/seagrass.
+4. OpenStreetMap nodes and ways carrying `seamark:*` tags, acquired through Overpass and used as stored OpenSeaMap-ecosystem vector items under ODbL 1.0.
 
 The products are scientific information and **must not be used for navigation**.
 
@@ -31,7 +32,7 @@ Two deterministic visual checks, `bathymetry-preview.png` and `seafloor-class-pr
 datatiles-serve work/bay-of-naples.datatiles --port 8080
 ```
 
-Open `http://127.0.0.1:8080/playground`. Cursor values, profile charts, contours, predicate matches, shadow relief, depth/class texture, and the 3D wireframe are not stored portrayals: they are generated from decoded numeric arrays after each request or viewport change.
+Open `http://127.0.0.1:8080/playground`. Cursor values, profile charts, contours, smart depth samples, predicate matches, shadow relief, depth color, seabed texture, and the 3D wireframe are not stored portrayals: they are generated from decoded numeric arrays after each request or viewport change. OpenSeaMap-ecosystem items are different: they are stored GeoJSON vector features in `variable=openseamap_items`, not a remote chart image.
 
 Do not open `src/datatiles/profile-demo.html` directly in Safari or another browser. It is a server template, not a standalone file; `datatiles-serve` injects the collection identifier and provides the `/collections/...` analysis resources.
 
@@ -55,6 +56,7 @@ To replicate independently, copy only `config.json`, install the locked environm
 | `seabed_habitat` | uint8 DNT1 | deterministic generalized biogenic habitat class |
 | `seafloor_class` | uint8 DNT1 | habitat-over-substrate fusion using the configured precedence |
 | `northwest_wind_shelter` | uint8 DNT1 | derived north-west land-interception exposure proxy |
+| `openseamap_items` | tiled GeoJSON vector | checksum-locked OpenStreetMap `seamark:*` nodes and ways; ODbL 1.0; not for navigation |
 
 The original GeoJSON attributes remain in the raw evidence bundle. Generalization rules are implemented in `datatiles.demo`, versioned in the configuration, and tested.
 

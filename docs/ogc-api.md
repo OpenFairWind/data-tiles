@@ -17,6 +17,7 @@ Run `datatiles-serve FILE --host 127.0.0.1 --port 8080`. The server is read-only
 | `/playground` | OpenLayers multidimensional scientific playground |
 | `/collections/{id}/point` | cursor values with source tile and pixel evidence |
 | `/collections/{id}/contours` | live GeoJSON bathymetric isolines |
+| `/collections/{id}/nautical-items` | stored tiled-GeoJSON OpenStreetMap seamark features used by the OpenSeaMap ecosystem |
 | `/collections/{id}/query` | compound numeric, categorical, and mask predicates |
 | `/collections/{id}/tiles` | tileset list |
 | `/collections/{id}/tiles/WebMercatorQuad/{z}/{x}/{y}` | tile retrieval |

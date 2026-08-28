@@ -131,3 +131,39 @@ def contours(store: DataTiles, bbox: tuple[float,float,float,float], *, interval
         if segments: features.append({"type":"Feature","geometry":{"type":"MultiLineString","coordinates":segments},"properties":{"depth_m":level}})
     return {"type":"FeatureCollection","features":features,"datatiles:interval_m":interval,
             "datatiles:dataSource":"live marching-squares derivation from decoded depth tiles"}
+
+
+def stored_vector_features(store: DataTiles, bbox: tuple[float,float,float,float], *,
+                           variable: str="openseamap_items", zoom: int|None=None) -> dict[str,Any]:
+    """Return deduplicated features from stored tiled GeoJSON vector content."""
+    west,south,east,north=_valid_bbox(bbox)
+    matches=store.find_coordinate_sets({"variable":variable})
+    matches=[item for item in matches if store.content_profile(item)["data_type"]=="vector"]
+    if not matches:raise DataTilesError(f"vector variable not found: {variable}")
+    if len(matches)>1:raise DataTilesError(f"vector variable {variable!r} has multiple coordinate sets")
+    set_id=matches[0]; coordinates=store.coordinate_set_values(set_id)
+    profile=store.content_profile(set_id)
+    if profile["data_type"]!="vector" or profile["media_type"]!="application/geo+json":
+        raise DataTilesError(f"{variable} is not tiled GeoJSON vector content")
+    z=_common_zoom(store,[set_id],zoom); n=2**z
+    lonx=lambda lon:max(0,min(n-1,int(math.floor((lon+180)/360*n))))
+    laty=lambda lat:max(0,min(n-1,int(math.floor((1-math.asinh(math.tan(math.radians(lat)))/math.pi)/2*n))))
+    features={}
+    for x in range(lonx(west),lonx(east)+1):
+        for y in range(laty(north),laty(south)+1):
+            blob=store.get_by_coordinate_set(z,x,y,set_id,xyz=True)
+            if blob is None:continue
+            try:value=json.loads(blob)
+            except (UnicodeDecodeError,json.JSONDecodeError) as exc:raise DataTilesError("stored GeoJSON vector tile is invalid") from exc
+            for feature in value.get("features",[]):
+                geometry=feature.get("geometry") or {}; raw=geometry.get("coordinates",[])
+                points=[raw] if geometry.get("type")=="Point" else raw if geometry.get("type")=="LineString" else []
+                if not points:continue
+                fw,fs,fe,fn=min(p[0] for p in points),min(p[1] for p in points),max(p[0] for p in points),max(p[1] for p in points)
+                if fe<west or fw>east or fn<south or fs>north:continue
+                features[str(feature.get("id",json.dumps(feature,sort_keys=True,separators=(',',':'))))]=feature
+    ordered=[features[key] for key in sorted(features)]
+    digest=hashlib.sha256(json.dumps(ordered,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
+    return {"type":"FeatureCollection","features":ordered,"datatiles:variable":variable,"datatiles:coordinates":coordinates,
+            "datatiles:zoom":z,"datatiles:sha256":digest,
+            "datatiles:dataSource":"stored tiled GeoJSON vector content; not a remote portrayal"}

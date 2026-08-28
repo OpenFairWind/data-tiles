@@ -83,7 +83,9 @@ def _raw_requests(config: dict[str, Any]) -> list[tuple[str, str, str]]:
     habitat = sources["habitat"]
     requests = []
     for name, source in sources.items():
-        requests.append((f"{name}_catalogue", f"{name}-catalogue.json", source["catalogue_url"] + "?format=json"))
+        suffix="xml" if name=="nautical" else "json"
+        url=source["catalogue_url"] if name=="nautical" else source["catalogue_url"] + "?format=json"
+        requests.append((f"{name}_catalogue", f"{name}-catalogue.{suffix}", url))
     requests.extend([
         ("bathymetry_capabilities", "bathymetry-capabilities.xml", request_url(bathy["service"], {
             "service":"WCS", "version":"1.0.0", "request":"GetCapabilities"})),
@@ -100,6 +102,11 @@ def _raw_requests(config: dict[str, Any]) -> list[tuple[str, str, str]]:
             "outputFormat":"application/json", "srsName":"EPSG:4326",
             "bbox":f"{west},{south},{east},{north},EPSG:4326"})),
     ])
+    if "nautical" in sources:
+        nautical=sources["nautical"]
+        query=(f'[out:json][timeout:180];(node["seamark:type"]({south},{west},{north},{east});'
+               f'way["seamark:type"]({south},{west},{north},{east}););out tags geom;')
+        requests.append(("nautical", "nautical-overpass.json", request_url(nautical["service"], {"data":query})))
     return requests
 
 
@@ -121,6 +128,9 @@ def validate_raw(key: str, path: Path) -> None:
     if key in ("substrate", "habitat"):
         value = json.loads(path.read_text())
         if value.get("type") != "FeatureCollection": raise RuntimeError(f"{key} response is not a GeoJSON FeatureCollection")
+    if key == "nautical":
+        value=json.loads(path.read_text())
+        if not isinstance(value.get("elements"),list): raise RuntimeError("nautical response is not Overpass JSON")
 
 
 def acquire(config_path: Path, work: Path, expected_lock: Path | None = None) -> None:
@@ -161,6 +171,37 @@ def acquire(config_path: Path, work: Path, expected_lock: Path | None = None) ->
 CLASS_NAMES = {0:"unknown", 1:"other", 2:"mixed sediment", 3:"mud", 4:"sand",
                5:"gravel/coarse sediment", 6:"rock/hard substrate", 7:"algae/maerl/kelp",
                8:"seagrass/Posidonia", 9:"coral/coralligenous/reef"}
+
+
+def overpass_to_geojson(path: Path) -> dict[str, Any]:
+    """Convert locked OpenStreetMap seamark elements into deterministic CRS84 GeoJSON."""
+    elements=json.loads(path.read_text()).get("elements",[]); features=[]
+    for element in sorted(elements,key=lambda item:(item.get("type",""),int(item.get("id",0)))):
+        tags={key:value for key,value in sorted((element.get("tags") or {}).items()) if key.startswith("seamark:") or key in ("name","ref")}
+        if element.get("type")=="node" and "lon" in element and "lat" in element:
+            geometry={"type":"Point","coordinates":[element["lon"],element["lat"]]}
+        else:
+            points=[[point["lon"],point["lat"]] for point in element.get("geometry",[]) if "lon" in point and "lat" in point]
+            if len(points)<2: continue
+            geometry={"type":"LineString","coordinates":points}
+        features.append({"type":"Feature","id":f'{element.get("type")}/{element.get("id")}',"properties":tags,"geometry":geometry})
+    return {"type":"FeatureCollection","features":features,
+            "datatiles:source":"OpenStreetMap seamark-tagged elements used by the OpenSeaMap rendering ecosystem"}
+
+
+def _geometry_bounds(geometry: dict[str, Any]) -> tuple[float,float,float,float] | None:
+    coordinates=geometry.get("coordinates",[])
+    points=[coordinates] if geometry.get("type")=="Point" else coordinates if geometry.get("type")=="LineString" else []
+    if not points:return None
+    return min(p[0] for p in points),min(p[1] for p in points),max(p[0] for p in points),max(p[1] for p in points)
+
+
+def _tile_bounds(z: int, x: int, y: int) -> tuple[float,float,float,float]:
+    n=2**z
+    west=x/n*360-180; east=(x+1)/n*360-180
+    north=math.degrees(math.atan(math.sinh(math.pi*(1-2*y/n))))
+    south=math.degrees(math.atan(math.sinh(math.pi*(1-2*(y+1)/n))))
+    return west,south,east,north
 
 
 def _property_text(properties: dict[str, Any]) -> str:
@@ -300,6 +341,8 @@ def build(config_path: Path, work: Path) -> None:
     fused=np.maximum(substrate,habitat).astype(np.uint8)
     shelter_reach=int(config.get("derived",{}).get("northwest_shelter_reach_cells",32))
     northwest_shelter=northwest_wind_shelter(bathy,shelter_reach)
+    nautical=(overpass_to_geojson(work/"raw/nautical-overpass.json")
+              if "nautical" in config["sources"] else {"type":"FeatureCollection","features":[]})
     from PIL import Image
     palette=np.array([[210,210,210],[170,170,170],[175,145,110],[105,85,70],[224,204,145],
                       [160,145,120],[115,105,100],[90,150,70],[35,135,75],[205,85,100]],dtype=np.uint8)
@@ -313,13 +356,15 @@ def build(config_path: Path, work: Path) -> None:
     output=work/"bay-of-naples.datatiles"
     if output.exists(): output.unlink()
     tile_size=config["tiles"]["tile_size"]; minzoom=config["tiles"]["minzoom"]; maxzoom=config["tiles"]["maxzoom"]
-    source_entities={key:f"urn:datatiles:source:{key}:{info['sha256']}" for key,info in lock["sources"].items() if key in ("bathymetry","substrate","habitat")}
+    source_entities={key:f"urn:datatiles:source:{key}:{info['sha256']}" for key,info in lock["sources"].items() if key in ("bathymetry","substrate","habitat","nautical")}
     coordinates={
       "depth_below_lat_m":{"variable":"depth_below_lat_m","dataset_release":"EMODnet DTM 2024"},
       "seabed_substrate":{"variable":"seabed_substrate","dataset_release":"EMODnet Geology 2022","classification_scheme":"datatiles-substrate-v1"},
       "seabed_habitat":{"variable":"seabed_habitat","dataset_release":"EUSeaMap 2025","classification_scheme":"EUNIS-2007 generalized"},
       "seafloor_class":{"variable":"seafloor_class","dataset_release":config["demo_id"],"classification_scheme":config["classification"]["version"]},
       "northwest_wind_shelter":{"variable":"northwest_wind_shelter","dataset_release":config["demo_id"],"classification_scheme":"land-interception-nw-v1"}}
+    nautical_coordinates={"variable":"openseamap_items","dataset_release":config["sources"].get("nautical",{}).get("release",config["demo_id"]),
+                          "classification_scheme":"OpenSeaMap seamark tagging"}
     grids={"depth_below_lat_m":(bathy,"float32",-9999.0,"m"), "seabed_substrate":(substrate,"uint8",0,"1"),
            "seabed_habitat":(habitat,"uint8",0,"1"), "seafloor_class":(fused,"uint8",0,"1"),
            "northwest_wind_shelter":(northwest_shelter,"uint8",255,"1")}
@@ -330,11 +375,13 @@ def build(config_path: Path, work: Path) -> None:
         store.add_crs("horizontal",authority="EPSG",code="3857",uri="http://www.opengis.net/def/crs/EPSG/0/3857")
         store.add_crs("vertical",wkt2='VERTCRS["Lowest Astronomical Tide (LAT)",VDATUM["Lowest Astronomical Tide"],CS[vertical,1],AXIS["depth",down],LENGTHUNIT["metre",1]]')
         store.add_provenance_agent("https://emodnet.ec.europa.eu/","EMODnet",agent_type="organization",uri="https://emodnet.ec.europa.eu/")
+        if "nautical" in config["sources"]:
+            store.add_provenance_agent("https://www.openstreetmap.org/copyright","OpenStreetMap contributors",agent_type="organization",uri="https://www.openstreetmap.org/copyright")
         store.add_provenance_agent("urn:software:datatiles",f"DataTiles {__version__}",agent_type="software")
         for key,entity in source_entities.items():
             info=lock["sources"][key]; source=config["sources"][key]
             store.add_provenance_entity(entity,"dataset-snapshot",source["dataset"],uri=info["request_url"],checksum_algorithm="sha256",checksum=info["sha256"],attributes={"catalogue_uuid":source["catalogue_uuid"],"release":source["release"],"license":source["license"]})
-            store.add_provenance_relation(entity,"wasAttributedTo","https://emodnet.ec.europa.eu/")
+            store.add_provenance_relation(entity,"wasAttributedTo","https://www.openstreetmap.org/copyright" if key=="nautical" else "https://emodnet.ec.europa.eu/")
         activity="urn:datatiles:activity:bay-of-naples-v1"
         store.add_provenance_activity(activity,"deterministic-tiling","Bay of Naples DataTiles build",software=f"DataTiles {__version__}",parameters={"config_sha256":sha256(config_path),"depth_transform":depth_transform,"northwest_shelter":{"method":"northwest land-interception ray","reach_cells":shelter_reach,"status":"derived exposure proxy"}})
         store.add_provenance_relation(activity,"wasAssociatedWith","urn:software:datatiles")
@@ -351,15 +398,26 @@ def build(config_path: Path, work: Path) -> None:
                         entity_keys=("bathymetry",) if variable in ("depth_below_lat_m","northwest_wind_shelter") else ("substrate",) if variable=="seabed_substrate" else ("habitat",) if variable=="seabed_habitat" else ("bathymetry","substrate","habitat")
                         for key in entity_keys: store.link_tile_provenance(z,x,y,coordinates[variable],source_entities[key],xyz=True)
                         count+=1
+                    if "nautical" in source_entities:
+                        tile_bbox=_tile_bounds(z,x,y); features=[]
+                        for feature in nautical["features"]:
+                            fb=_geometry_bounds(feature["geometry"])
+                            if fb and not (fb[2]<tile_bbox[0] or fb[0]>tile_bbox[2] or fb[3]<tile_bbox[1] or fb[1]>tile_bbox[3]):
+                                features.append(feature)
+                        payload=canonical_json({"type":"FeatureCollection","features":features})
+                        store.put(z,x,y,payload,nautical_coordinates,xyz=True,data_type="vector",media_type="application/geo+json",
+                                  encoding="GeoJSON",schema={"geometry_types":["Point","LineString"],"property_prefix":"seamark:","crs":"OGC:CRS84"})
+                        store.link_tile_provenance(z,x,y,nautical_coordinates,source_entities["nautical"],xyz=True)
+                        count+=1
         for name,value in {
             "bounds":",".join(map(str,bbox)), "center":f"14.125,40.775,{minzoom}", "minzoom":str(minzoom), "maxzoom":str(maxzoom),
-            "description":"Reproducible EMODnet bathymetry, substrate, habitat, and deterministic fused seafloor classification for the Bay of Naples.",
-            "attribution":"EMODnet Bathymetry, EMODnet Geology, and EMODnet Seabed Habitats; CC BY 4.0 where stated; not for navigation.",
+            "description":"Reproducible EMODnet bathymetry, substrate, habitat, fused seafloor classification, and stored OpenStreetMap seamark vectors for the Bay of Naples.",
+            "attribution":"EMODnet products and OpenStreetMap contributors (ODbL); not for navigation.",
             "version":"1", "datatiles:demo_config_sha256":sha256(config_path), "datatiles:warning":"DO NOT USE FOR NAVIGATION",
             "datatiles:fair_profile":"1", "datatiles:identifier":"urn:datatiles:demo:bay-of-naples:1",
             "datatiles:license":"https://creativecommons.org/licenses/by/4.0/", "datatiles:access_rights":"public",
             "datatiles:creators":json.dumps([{"name":"Raffaele Montella"}],separators=(",",":")),
-            "datatiles:keywords":json.dumps(["bathymetry","seabed substrate","marine habitat","Bay of Naples","EMODnet"],separators=(",",":")),
+            "datatiles:keywords":json.dumps(["bathymetry","seabed substrate","marine habitat","seamark","OpenSeaMap","Bay of Naples","EMODnet"],separators=(",",":")),
             "datatiles:issued":"2026-08-27", "datatiles:modified":"2026-08-27",
             "datatiles:landing_page":"https://github.com/OpenFairWind/DataTiles",
             "datatiles:classes":json.dumps(CLASS_NAMES,separators=(",",":"),sort_keys=True)}.items():

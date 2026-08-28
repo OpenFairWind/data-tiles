@@ -22,3 +22,7 @@ datatiles put mixed.datatiles 8 138 103 observations.mvt.gz --xyz \
 Selection is the MBTiles interoperability boundary. Selecting an `MVT+gzip` vector coordinate set exposes its BLOBs through the conventional four-column `tiles` view, sets `metadata.format` to `pbf`, and projects the profile schema to `metadata.json`. Selecting tiled GeoJSON uses `application/geo+json` without MVT metadata. Selecting a numeric raster coordinate set exposes the same interface with its raster media type and removes stale MVT metadata.
 
 DataTiles validates content declarations and framing; it does not semantically decode MVT geometry in the dependency-free core. Independent producers should additionally validate protobuf structure, layer extent, geometry commands, property types, clipping, winding order, and zoom-dependent generalization with an MVT conformance tool.
+
+## Bay of Naples seamark example
+
+The reference demo stores `variable=openseamap_items` as tiled GeoJSON. The name identifies OpenStreetMap `seamark:*` features commonly portrayed by OpenSeaMap; it does not imply that a remote OpenSeaMap raster portrayal has been copied into DataTiles. The exact Overpass response is immutable and checksum-locked, node and way geometry is converted deterministically to OGC:CRS84, the content profile declares `data_type=vector`, `media_type=application/geo+json`, and `encoding=GeoJSON`, and provenance attributes the database rights to OpenStreetMap contributors under ODbL 1.0.
