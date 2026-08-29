@@ -1,0 +1,25 @@
+{
+  "profile": "DataTiles FAIR scholarly demonstration",
+  "purpose": "Template only; replace illustrative identifiers with registered publication evidence",
+  "required_evidence": [
+    "primary PID",
+    "dataset rights",
+    "metadata rights",
+    "source rights per provenance entity",
+    "source SHA-256 locks",
+    "W3C PROV-aligned graph",
+    "DataCite 4.7 metadata export",
+    "catalogue registration",
+    "landing page",
+    "metadata retention policy",
+    "scientific QA and limitations"
+  ],
+  "warning": "Demo outputs are research/visualization artifacts and are not for navigation.",
+  "optional_integrity_evidence": [
+    "DataTiles-Integrity-Manifest-1",
+    "Ed25519 detached/embedded signature",
+    "independently authenticated public key or certificate",
+    "optional Sigstore/timestamp/transparency evidence"
+  ],
+  "integrity_warning": "Signature validity does not establish scientific validity, legal compliance, hydrographic authority, or navigation fitness."
+}

@@ -126,10 +126,15 @@ def test_revision_two_is_migrated_with_content_profiles(tmp_path):
     with DataTiles(path,create=True,tile_format="png") as store:
         store.put(0,0,0,b"png",{})
         store.db.execute("DROP TABLE datatiles_contents")
+        for table in ("datatiles_release", "datatiles_drm_policies", "datatiles_commercial_products",
+                      "datatiles_signatures", "datatiles_integrity_manifests", "datatiles_publication_evidence",
+                      "datatiles_fair_agents", "datatiles_rights", "datatiles_related_identifiers",
+                      "datatiles_identifiers", "datatiles_variable_identifiers", "datatiles_variables"):
+            store.db.execute(f"DROP TABLE {table}")
         store.db.execute("DELETE FROM metadata WHERE name='datatiles:default_media_type'")
         store.db.execute("PRAGMA user_version=2"); store.db.commit()
     with DataTiles(path) as migrated:
-        assert migrated.db.execute("PRAGMA user_version").fetchone()[0]==3
+        assert migrated.db.execute("PRAGMA user_version").fetchone()[0]==8
         assert migrated.content_profiles()[0]["media_type"]=="image/png"
         assert migrated.get(0,0,0,{})==b"png"
 

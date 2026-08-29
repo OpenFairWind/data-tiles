@@ -1,4 +1,4 @@
-# DataTiles 1.0-draft specification (schema revision 3)
+# DataTiles 1.0-draft specification (schema revision 8)
 
 ## Status, audience, and reading convention
 
@@ -36,7 +36,7 @@ A partial implementation MUST NOT claim the class whose requirements it omits.
 
 - The file MUST be SQLite 3 and SHOULD use `.datatiles`.
 - `PRAGMA application_id` MUST equal hexadecimal `0x44415441` (`DATA`).
-- `PRAGMA user_version` MUST equal `3`.
+- `PRAGMA user_version` MUST equal `8`.
 - Foreign keys MUST be enabled by writers and validators.
 - Text is UTF-8. JSON is UTF-8 and MUST reject NaN and infinities.
 - The spatial tile matrix is Web Mercator; rows stored in the database use TMS orientation.
@@ -380,3 +380,23 @@ An implementation MUST NOT guess payload type from BLOB signatures when a conten
 ## 18. Evolution
 
 Readers MUST reject unsupported schema revisions rather than infer them. A migration MUST be transactional, deterministic, documented, and preserve scientific identity. Existing columns MUST NOT be reinterpreted. Future revisions may define non-Gregorian calendars, content deduplication, tile checksums, dimension overviews, additional vector encodings, and further OGC API profiles.
+
+
+## Zarr source-ingestion profile
+
+A conforming `zarr2datatiles` source utility MUST follow `zarr-source-profile.md`. Zarr is a multi-object N-dimensional store rather than a single-file checksum domain. Local directory stores MUST use the canonical `zarr-tree-sha256-v1` digest defined there; remote stores MUST be bound to an immutable store/snapshot by an authoritative checksum supplied by the publication workflow. The importer MUST preserve the source identifier, checksum algorithm/value, CF semantics when present, dimensions, units, declared resampling, source/output rights, and tile-level lineage. It MUST NOT persist backend credentials or infer data licensing from transport accessibility. Zarr format 2 and 3 MAY be accepted; any required format, group, consolidated-metadata policy, and non-secret storage-option keys MUST be recorded as conversion parameters. Scientific arrays MUST remain numeric DNT1 evidence rather than being silently converted to portrayal imagery.
+
+
+## Cryptographic integrity profile
+
+Schema revision 6 adds optional canonical integrity manifests and digital signatures. Implementations claiming the native profile MUST follow `digital-signatures.md` and `specification-revision-6-addendum.md`. The signed subject is the canonical logical DataTiles object, not raw SQLite file bytes. The native signature algorithm is Ed25519 over `DataTiles-Integrity-Manifest-1`; SHA-256 remains the digest primitive. Signature metadata MUST distinguish cryptographic validity from trust in signer identity. Signature presence is optional and MUST NOT be presented as proof of FAIRness, scientific correctness, legal compliance, hydrographic authority, or navigation safety. Servers MUST NOT expose private-key signing endpoints as part of the standard DataTiles read service.
+
+
+## Optional commercial protected distribution
+
+Schema revision 7 adds commercial-product and machine-readable policy metadata. Implementations supporting commercial protected distribution MUST follow `drm-and-commercial-licensing.md` and `specification-revision-7-addendum.md`. `DataTiles-Protected-Distribution-1` is an optional outer encrypted distribution package; after authorized decryption the payload MUST be the exact ordinary DataTiles SQLite object. W3C ODRL 2.2 is the default machine-readable rights-policy model. Technical DRM grants MUST NOT be interpreted as source relicensing, scientific certification, hydrographic authority, FAIR certification, or navigation safety. Secrets MUST remain outside the DataTiles metadata/provenance graph and standard read-only service.
+
+
+## Release versioning
+
+Schema revision 8 defines `DataTiles-Release-Versioning-1`. A published DataTiles object MAY declare one `datatiles_release` record containing stable `product_id`, human `version`, monotonically increasing integer `sequence`, RFC 3339 `released_at`, and optional predecessor/release-notes/update links. Consumers MUST use `sequence`, not lexical `version`, to order releases. Published versions are immutable; a correction is a new DataTiles object with a larger sequence, new checksum, and new signature where signing is used. See `specification-revision-8-addendum.md`.

@@ -38,6 +38,10 @@ The spatial row follows MBTiles/TMS convention. Use `--xyz` on `put` and `get` t
 
 Version 0.10 adds conservative physical-table MBTiles fallback, a self-sufficient implementation specification, and an onboard edge-intelligence manifesto/white paper. It also includes mixed raster/vector content profiles, a tested five-lesson zero-to-hero curriculum, FAIR-by-design publication profile, OpenLayers scientific playground, comprehensive quality suite, protected CI/CD release path, interval axes, PROV-inspired provenance, scientific CRS records, bounded numeric-array decoding, OpenAPI description, and read-only OGC-style access.
 
+## NetCDF, GRIB, and Zarr import utilities
+
+Optional import utilities under `utils/` convert local or URL-identified NetCDF, GRIB2, and Zarr rectilinear grids into semantic DNT1 DataTiles. They preserve CF Standard Names when present, add GRIB2 crosswalk identifiers when available, retain source identity plus format-appropriate checksum provenance, and never pre-render scientific arrays as imagery. Install with `python -m pip install -e '.[utils]'`; see `docs/import-utilities.md`.
+
 ## Raster and vector content
 
 - Numeric raster matrices use the dependency-free DNT1 encoding and retain dtype, shape, byte order, nodata, scale, offset, unit, and compression.
@@ -68,6 +72,18 @@ The playground proves that DataTiles contains queryable multidimensional data ra
 The release workspace may also contain `dist/from-gaeta-to-maratea.datatiles` and `dist/from-gaeta-to-maratea-static.zip`. The ZIP is a Safari-compatible static distribution with the complete DataTiles container, a checksum-identified 128 × 72 numeric/categorical browser surface embedded in the generated HTML, stored nautical vectors, and pinned OpenLayers assets. After extraction, `index.html` works directly through `file://`; `open-demo.command` remains available for testing through a loopback static server. Depth and seabed portrayal, shadow relief, adaptive contours, smart depth labels, source coverage, profiles, cursor inspection, the north-west shelter predicate, highlighted compound queries, and the rotatable 3D mesh are computed client-side. It includes no pre-rendered image tiles.
 
 Repository guidance is in [`AGENTS.md`](AGENTS.md), and the Markdown license notice is in [`LICENSE.md`](LICENSE.md). The complete Apache-2.0 legal text remains in `LICENSE`.
+
+## Zarr source ingestion
+
+DataTiles 0.13 adds `utils/zarr2datatiles.py` for Zarr v2/v3 stores. Local directory stores use the canonical `zarr-tree-sha256-v1` store digest; remote stores must be bound to an immutable snapshot with an authoritative checksum. Groups, consolidated metadata policy, fsspec storage backends, CF semantic mapping, explicit source/output rights, and credential-safe provenance are documented in `docs/zarr-source-profile.md`.
+
+## Optional cryptographic integrity and signatures
+
+DataTiles schema revision 6 can cryptographically bind the final logical scientific object to a signer without making signatures mandatory. `datatiles-integrity` creates deterministic SHA-256 logical manifests and optional Ed25519 signatures, either embedded or detached. Verification explicitly distinguishes mathematical validity from trust in the signer: an embedded public key is not, by itself, an authenticated publisher identity. The dependency-free core remains unchanged; install `.[integrity]` only when signing/verification is required. See `docs/digital-signatures.md`.
+
+## FAIR scientific publication
+
+DataTiles 0.12 treats FAIR, provenance, and licensing as enforceable publication evidence. Published objects separate persistent identity, DataCite 4.7 citation metadata, W3C PROV-aligned lineage, SPDX rights for the generated dataset/metadata and each source, cryptographic source identity, and external repository evidence. `fair_report(strict_publication=True)` is a release gate; it does not claim that FAIRness proves scientific validity or navigational fitness. See `docs/fair-publication-profile.md`, `docs/provenance.md`, and `docs/data-licensing.md`.
 
 ## Quality assurance and releases
 
@@ -104,6 +120,24 @@ The [onboard intelligence white paper](docs/white-paper.md) presents DataTiles a
 
 New users can follow the [five-lesson DataTiles zero-to-hero tutorial](docs/tutorial/README.md), which combines formal discussion with a fully offline mixed raster/vector laboratory dataset.
 
+## Data acknowledgement and citation — required reading
+
+Data Tiles demo derivatives are multi-source scientific products. Every map, MBTiles file, figure, service, paper, and release must visibly credit every dataset that actually contributed cells or features and must ship its machine-readable provenance. The MIT software licence does not relicense any input data.
+The authoritative, source-by-source register is docs/data_sources_and_citation.md. It gives full bibliographic citations, mandatory map acknowledgements, licences, persistent identifiers, coverage/resolution limitations, frozen-manifest locations, and a FAIR release checklist.
+
+For the current From Gaeta to Maratea production build, acknowledge:
+
+JammeGaia22/MGDS bathymetry: Foglini, F., Tonielli, R., & Rovere, M. (2024), Multi-Resolution bathymetry grids of the Naples and Pozzuoli Gulf and Amalfi Coastal Area, Jamme_Gaia22 (2022), https://doi.org/10.60521/331667, CC BY 4.0.
+EMODnet fallback bathymetry: EMODnet Bathymetry Consortium (2024), EMODnet Digital Bathymetry (DTM 2024), https://doi.org/10.12770/cf51df64-56f9-4a99-b1aa-36b8d7b743a1, CC BY 4.0. EMODnet is used only where JammeGaia22 contains no finite measurement.
+Land/coastline: GSHHG 2.3.7 (Wessel & Smith, 1996, https://doi.org/10.1029/96JB00104) and, when enabled, S2Coast-2023 (Duan et al., https://doi.org/10.5281/zenodo.17092775, CC BY 4.0). These remain separate topology and high-water-line facts.
+Navigation and land context: © OpenStreetMap contributors, ODbL 1.0, https://www.openstreetmap.org/copyright.
+The required short-form map credit is:
+
+Bathymetry: Foglini, Tonielli & Rovere (2024), JammeGaia22/MGDS, doi:10.60521/331667; EMODnet Bathymetry Consortium DTM 2024, doi:10.12770/cf51df64-56f9-4a99-b1aa-36b8d7b743a1. Land/coastline: GSHHG 2.3.7 and S2Coast-2023. Context: © OpenStreetMap contributors, ODbL 1.0. Not for navigation.
+Do not list GMRT, GEBCO, EMODnet thematic products, or ISPRA as contributors unless the specific run manifest proves that they were used. Citation is source-specific evidence, not a generic project boilerplate.
+
+> **Software-licence consistency check.** The current public DataTiles repository declares Apache-2.0 in `LICENSE`. The preceding requested wording says MIT. Before publication, the README wording and `LICENSE` MUST agree; regardless of which software licence is adopted, it does not relicense input data.
+
 ## How to cite DataTiles
 
 Research using the software SHOULD cite the released software described by [`CITATION.cff`](CITATION.cff). Also cite the paper(s) that support the part of the scientific lineage or application you use:
@@ -121,3 +155,17 @@ This repository is a working reference implementation and a draft format specifi
 ## License
 
 Apache-2.0.
+
+## Optional commercial DRM
+
+DataTiles can optionally package a finalized lawful commercial product as an encrypted `.dtpkg` with recipient-specific issuer-signed licence grants. The portable profile uses AES-256-GCM, X25519/HKDF key wrapping, Ed25519 issuer signatures, and W3C ODRL 2.2 policy metadata. DRM is a technical access-control mechanism only: it does not relicense source data, remove attribution obligations, establish ownership, prove scientific validity, or make a product suitable for navigation. See `docs/drm-and-commercial-licensing.md`.
+
+## DataTiles Store PWA
+
+The optional `/store` application is a Python/Flask progressive web application backed by SQLAlchemy. It indexes machine-readable metadata from stored DataTiles files into a separate application database, supports full catalog search, authenticated browsing, role/group based authorization, an interactive chart-explorer-style preview of declared portrayal slices, and authorized downloads of the original DataTiles files. The bootstrap `admin` user belongs to the `administrators` group with the `admin` role; its initial password is explicitly configured in `store/config.py` and must be changed/secret-managed for production. The PWA never treats numeric scientific matrices as imagery and its service worker does not cache protected APIs, map payloads, or downloads. See `docs/store-pwa.md`. Managed authentication, verified-email self-registration, Google OIDC, Microsoft Entra ID tenants, generic OAuth2/OIDC, SMTP, public callback URL, and agreement settings are administrator-configurable in the PWA and API. Complete Store help is maintained under `store/docs/` and rendered by the PWA Help section.
+
+## Release versioning and optional Store payments
+
+Schema revision 8 defines `DataTiles-Release-Versioning-1`: a release can carry stable product identity, a human version label, a monotonically increasing release sequence, timestamp, predecessor, release-notes URI, and update-discovery URI. Published versioned releases are immutable; corrections and updates are new DataTiles objects with new checksums and signatures where used.
+
+The optional Store 0.4 adds a provider-neutral payment interface, with PayPal Orders v2 as the reference adapter, plus release-specific purchase entitlements, exact download history, a user library, and update notifications for users who previously acquired older sequences. Payment is disabled by default and is legally independent from data-licence acceptance: paying for a product never creates rights that the publisher does not possess. See `store/docs/payments.md` and `store/docs/versioning-and-updates.md`.

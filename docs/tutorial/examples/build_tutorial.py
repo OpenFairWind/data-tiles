@@ -27,6 +27,13 @@ def build(path: Path) -> None:
         store.add_dimension("release","text",axis="O",description="Dataset release identifier")
         store.add_crs("horizontal",authority="EPSG",code="3857",uri="http://www.opengis.net/def/crs/EPSG/0/3857")
         store.add_crs("vertical",uri="https://vocab.example.org/datum/tutorial-lat",wkt2="VERTCRS[\"Tutorial depth relative to LAT, positive down\"]")
+        for name,standard_name,unit in (
+            ("depth_below_lat_m","sea_floor_depth_below_sea_surface","m"),
+            ("seafloor_class","sea_floor_lithology","1"),
+            ("depth_portrayal","sea_floor_depth_below_sea_surface","m"),
+            ("survey_stations","platform_id",None),
+        ):
+            store.add_variable(name,standard_name,canonical_unit=unit)
 
         depth=[5.0,8.0,12.0,20.0,6.0,9.0,14.0,24.0,7.0,10.0,16.0,28.0,8.0,11.0,18.0,32.0]
         seabed=[4,4,3,6,4,4,3,6,4,3,3,6,5,5,6,6]
@@ -53,17 +60,26 @@ def build(path: Path) -> None:
                   encoding="GeoJSON",schema={"geometryTypes":["Point"],"fields":{"name":"String","depth_m":"Number"}})
 
         store.add_provenance_agent("agent:tutorial-author","DataTiles tutorial",agent_type="software")
+        store.assign_fair_agent_role("agent:tutorial-author","creator")
         store.add_provenance_activity("activity:tutorial-build","deterministic-build","Build tutorial raster and vector tiles",
                                       software="datatiles",parameters={"grid":[4,4],"zoom":0})
         source_bytes=json.dumps({"depth":depth,"seabed":seabed,"observations":observations},sort_keys=True,separators=(",",":")).encode()
-        store.add_provenance_entity("entity:tutorial-source","source","Embedded tutorial observations",
+        store.add_provenance_entity("entity:tutorial-source","dataset","Embedded tutorial observations",
                                     checksum_algorithm="SHA-256",checksum=hashlib.sha256(source_bytes).hexdigest())
-        store.add_provenance_entity("entity:tutorial-container","dataset","Tutorial DataTiles container")
+        store.add_provenance_entity("entity:tutorial-container","collection","Tutorial DataTiles container")
         store.add_provenance_relation("activity:tutorial-build","used","entity:tutorial-source")
         store.add_provenance_relation("entity:tutorial-container","wasGeneratedBy","activity:tutorial-build")
         store.add_provenance_relation("activity:tutorial-build","wasAssociatedWith","agent:tutorial-author")
         for variable in ("depth_below_lat_m","seafloor_class","depth_portrayal","survey_stations"):
             store.link_tile_provenance(0,0,0,coordinates(variable),"entity:tutorial-container")
+        store.add_identifier("URN","urn:uuid:4ea0e809-599d-5f2b-9669-75cd132b9997",
+                             uri="https://example.org/datatiles/tutorial",primary=True)
+        for scope in ("dataset","metadata"):
+            store.add_rights(scope,"CC-BY-4.0",license_uri="https://creativecommons.org/licenses/by/4.0/",
+                             rights_holder="DataTiles tutorial",attribution_text="DataTiles tutorial")
+        store.add_rights("source","CC-BY-4.0",license_uri="https://creativecommons.org/licenses/by/4.0/",
+                         rights_holder="DataTiles tutorial",attribution_text="DataTiles tutorial",
+                         source_entity_id="entity:tutorial-source")
 
         metadata={
             "description":"Self-contained raster and vector dataset for the DataTiles zero-to-hero course.",

@@ -89,3 +89,19 @@ After `make all`, run `datatiles-serve work/gaeta-to-maratea.datatiles --port 80
 EMODnet is acquired at 2,754 × 1,167 regional cells; the compositing grid is 5,508 × 2,334 (nominal 50 m target spacing) so measured Jamme detail is not first collapsed to the coarser fallback grid. Storage extends through Web Mercator zoom 12. The client requests a bounded 128 × 128 map portrayal and a separate 96 × 72 analytic surface. The source-coverage layer makes every Jamme/EMODnet decision inspectable. Contour density is scale-dependent and remains limited by the selected source resolution; no new soundings are invented.
 
 The shelter field is a finite north-west ray test over the bathymetry water/land mask. It is a reproducible exposure proxy, not a wind-wave or atmospheric model, and must not support navigational or safety decisions.
+
+## FAIR, provenance, and rights gate
+
+The demo is also a publication-evidence exercise. Every upstream dataset must be represented by a checksum-identified provenance entity and an explicit source-rights record; the generated DataTiles dataset and its metadata have separate rights. The build must never infer permission from successful HTTP access. Before a scholarly release, replace illustrative identifiers with a registered PID, export DataCite 4.7 metadata and the W3C PROV-aligned graph, and archive the strict FAIR report with catalogue, landing-page, and metadata-retention evidence. `fair-publication-profile.json` lists the required evidence. The navigation warning remains independent of FAIR status: FAIRness does not establish hydrographic authority or safety fitness.
+
+## Source-specific citation gate
+
+`docs/data_sources_and_citation.md` is the authoritative citation register. A production run MUST record whether each acquired source actually contributed cells/features. Visible map/release acknowledgements MUST be checked against that frozen manifest: JammeGaia22 is primary bathymetry; EMODnet DTM 2024 is credited only when fallback cells are used; GSHHG topology and optional S2Coast-2023 high-water-line facts remain distinct; OpenStreetMap context retains ODbL attribution. Do not credit GMRT, GEBCO, EMODnet thematic products, ISPRA, or other candidates unless the run evidence proves contribution.
+
+## Optional signed release
+
+After the final source-contribution manifest, citations, rights, provenance, and FAIR checks are frozen, the demo MAY be signed with `datatiles-integrity`. Do not auto-sign intermediate NetCDF/GRIB/Zarr imports. The release should publish the detached signature and independently authenticated public key. A valid signature does not change the `Not for navigation` status.
+
+## Optional commercial edition
+
+The reference demo is not automatically converted into a proprietary product. A commercial edition may be created only if the frozen contribution manifest and every upstream licence permit that use. If enabled, register product/ODRL metadata in the inner DataTiles object, complete all acknowledgements, sign the frozen plaintext release if desired, and only then create `.dtpkg` packages and recipient licences. `Not for navigation` remains mandatory unless an independent competent authority establishes otherwise.

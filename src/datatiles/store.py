@@ -78,6 +78,15 @@ class DataTiles:
                 ("datatiles:default_media_type", default_media),
                 ("datatiles:version", "1.0-draft"),
                 ("datatiles:dimensions", "[]"),
+                ("datatiles:variable_semantics", "recommended"),
+                ("datatiles:fair_profile", "FAIR-Guiding-Principles-2016"),
+                ("datatiles:provenance_profile", "W3C-PROV-2013"),
+                ("datatiles:metadata_profile", "DataCite-4.7"),
+                ("datatiles:license_profile", "SPDX-3.0.1-expression"),
+                ("datatiles:integrity_profile", "DataTiles-Integrity-Manifest-1"),
+                ("datatiles:signature_profile", "DataTiles-Ed25519-Signature-1"),
+                ("datatiles:drm_profile", "DataTiles-Protected-Distribution-1"),
+                ("datatiles:rights_policy_profile", "W3C-ODRL-2.2"),
             ])
             self.db.commit()
         else:
@@ -91,18 +100,43 @@ class DataTiles:
         if application_id != 0x44415441:
             raise DataTilesError("not a DataTiles container (application_id mismatch)")
         revision=int(self.db.execute("PRAGMA user_version").fetchone()[0])
-        if revision not in (2,3):
+        if revision not in (2,3,4,5,6,7,8):
             raise DataTilesError(f"unsupported DataTiles schema revision: {revision}")
         objects={r[0] for r in self.db.execute("SELECT name FROM sqlite_master WHERE type IN ('table','view')")}
         required={"metadata","tiles","datatiles_dimensions","datatiles_values","datatiles_coordinate_sets",
                   "datatiles_coordinates","datatiles_tiles","datatiles_selected_slice"}
-        if revision==3: required.add("datatiles_contents")
+        if revision>=3: required.add("datatiles_contents")
+        if revision>=4: required.update({"datatiles_variables","datatiles_variable_identifiers"})
+        if revision>=5: required.update({"datatiles_identifiers","datatiles_related_identifiers","datatiles_rights","datatiles_fair_agents","datatiles_publication_evidence"})
+        if revision>=6: required.update({"datatiles_integrity_manifests","datatiles_signatures"})
+        if revision>=7: required.update({"datatiles_commercial_products","datatiles_drm_policies"})
+        if revision==8: required.add("datatiles_release")
         missing=required-objects
         if missing: raise DataTilesError("incomplete DataTiles schema: "+", ".join(sorted(missing)))
         if revision == 2:
             if read_only:
-                raise DataTilesError("schema revision 2 requires writable migration to revision 3")
-            self._migrate_v2_to_v3()
+                raise DataTilesError("schema revision 2 requires writable migration to revision 4")
+            self._migrate_v2_to_v3(); revision = 3
+        if revision == 3:
+            if read_only:
+                raise DataTilesError("schema revision 3 requires writable migration to revision 4")
+            self._migrate_v3_to_v4(); revision = 4
+        if revision == 4:
+            if read_only:
+                raise DataTilesError("schema revision 4 requires writable migration to revision 5")
+            self._migrate_v4_to_v5(); revision = 5
+        if revision == 5:
+            if read_only:
+                raise DataTilesError("schema revision 5 requires writable migration to revision 6")
+            self._migrate_v5_to_v6(); revision = 6
+        if revision == 6:
+            if read_only:
+                raise DataTilesError("schema revision 6 requires writable migration to revision 7")
+            self._migrate_v6_to_v7(); revision = 7
+        if revision == 7:
+            if read_only:
+                raise DataTilesError("schema revision 7 requires writable migration to revision 8")
+            self._migrate_v7_to_v8()
 
     def _migrate_v2_to_v3(self) -> None:
         metadata=dict(self.db.execute("SELECT name,value FROM metadata"))
@@ -120,6 +154,90 @@ class DataTiles:
                 key=hashlib.sha256(json.dumps(pairs,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
                 self.db.execute("UPDATE datatiles_coordinate_sets SET canonical_key=? WHERE coordinate_set_id=?",(key,set_row[0]))
             self.db.execute("PRAGMA user_version = 3")
+
+    def _migrate_v3_to_v4(self) -> None:
+        with self.db:
+            self.db.executescript("""
+                CREATE TABLE datatiles_variables (
+                  variable_id INTEGER PRIMARY KEY,
+                  name TEXT NOT NULL UNIQUE,
+                  standard_name TEXT NOT NULL,
+                  standard_name_vocabulary TEXT NOT NULL DEFAULT 'CF',
+                  standard_name_vocabulary_version TEXT,
+                  canonical_unit TEXT,
+                  long_name TEXT,
+                  description TEXT,
+                  CHECK(name <> '' AND trim(name) = name),
+                  CHECK(standard_name <> '' AND trim(standard_name) = standard_name)
+                );
+                CREATE INDEX datatiles_variables_standard_name
+                  ON datatiles_variables(standard_name_vocabulary, standard_name);
+                CREATE TABLE datatiles_variable_identifiers (
+                  variable_id INTEGER NOT NULL REFERENCES datatiles_variables(variable_id) ON DELETE CASCADE,
+                  scheme TEXT NOT NULL,
+                  identifier TEXT NOT NULL,
+                  scheme_version TEXT,
+                  uri TEXT,
+                  PRIMARY KEY(variable_id, scheme, identifier),
+                  UNIQUE(scheme, identifier),
+                  CHECK(scheme <> '' AND trim(scheme) = scheme),
+                  CHECK(identifier <> '' AND trim(identifier) = identifier)
+                ) WITHOUT ROWID;
+            """)
+            self.db.execute("INSERT OR IGNORE INTO metadata(name,value) VALUES ('datatiles:variable_semantics','recommended')")
+            self.db.execute("PRAGMA user_version = 4")
+
+    def _migrate_v4_to_v5(self) -> None:
+        sql = (Path(__file__).with_name("migration_v4_to_v5.sql").read_text() if Path(__file__).with_name("migration_v4_to_v5.sql").exists() else None)
+        if sql is None:
+            sql = """
+CREATE TABLE datatiles_identifiers (identifier_id INTEGER PRIMARY KEY,scheme TEXT NOT NULL,identifier TEXT NOT NULL,uri TEXT,is_primary INTEGER NOT NULL DEFAULT 0 CHECK(is_primary IN (0,1)),UNIQUE(scheme,identifier));
+CREATE UNIQUE INDEX datatiles_one_primary_identifier ON datatiles_identifiers(is_primary) WHERE is_primary=1;
+CREATE TABLE datatiles_related_identifiers (scheme TEXT NOT NULL,identifier TEXT NOT NULL,relation_type TEXT NOT NULL,uri TEXT,resource_type TEXT,relation_information TEXT,PRIMARY KEY(scheme,identifier,relation_type)) WITHOUT ROWID;
+CREATE TABLE datatiles_rights (rights_id INTEGER PRIMARY KEY,scope TEXT NOT NULL CHECK(scope IN ('dataset','metadata','source','portrayal','software','other')),license_expression TEXT NOT NULL,license_uri TEXT,rights_holder TEXT,rights_holder_uri TEXT,attribution_text TEXT,copyright_notice TEXT,access_rights TEXT NOT NULL DEFAULT 'open' CHECK(access_rights IN ('open','embargoed','restricted','closed')),source_entity_id TEXT REFERENCES datatiles_provenance_entities(entity_id) ON DELETE CASCADE,applies_to TEXT,UNIQUE(scope,source_entity_id,license_expression,applies_to));
+CREATE INDEX datatiles_rights_scope ON datatiles_rights(scope,access_rights);
+CREATE TABLE datatiles_fair_agents (agent_id TEXT NOT NULL REFERENCES datatiles_provenance_agents(agent_id) ON DELETE CASCADE,role TEXT NOT NULL,sequence INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(agent_id,role)) WITHOUT ROWID;
+CREATE TABLE datatiles_publication_evidence (evidence_type TEXT NOT NULL,uri TEXT NOT NULL,checked_at TEXT,checksum_algorithm TEXT,checksum TEXT,notes TEXT,PRIMARY KEY(evidence_type,uri)) WITHOUT ROWID;
+INSERT OR IGNORE INTO metadata(name,value) VALUES ('datatiles:fair_profile','FAIR-Guiding-Principles-2016');
+INSERT OR IGNORE INTO metadata(name,value) VALUES ('datatiles:provenance_profile','W3C-PROV-2013');
+INSERT OR IGNORE INTO metadata(name,value) VALUES ('datatiles:metadata_profile','DataCite-4.7');
+INSERT OR IGNORE INTO metadata(name,value) VALUES ('datatiles:license_profile','SPDX-3.0.1-expression');
+PRAGMA user_version = 5;
+"""
+        with self.db: self.db.executescript(sql)
+
+    def _migrate_v5_to_v6(self) -> None:
+        sql = (Path(__file__).with_name("migration_v5_to_v6.sql").read_text() if Path(__file__).with_name("migration_v5_to_v6.sql").exists() else None)
+        if sql is None:
+            sql = """
+CREATE TABLE datatiles_integrity_manifests (manifest_id TEXT PRIMARY KEY,profile TEXT NOT NULL,canonicalization TEXT NOT NULL,hash_algorithm TEXT NOT NULL CHECK(hash_algorithm='sha256'),root_sha256 TEXT NOT NULL UNIQUE CHECK(length(root_sha256)=64),manifest_json TEXT NOT NULL,created_at TEXT NOT NULL) WITHOUT ROWID;
+CREATE TABLE datatiles_signatures (signature_id TEXT PRIMARY KEY,manifest_id TEXT NOT NULL REFERENCES datatiles_integrity_manifests(manifest_id) ON DELETE CASCADE,signature_scheme TEXT NOT NULL,signature_encoding TEXT NOT NULL,signature BLOB NOT NULL,key_id TEXT NOT NULL,public_key BLOB,signer_agent_id TEXT REFERENCES datatiles_provenance_agents(agent_id) ON DELETE SET NULL,signed_at TEXT NOT NULL,verification_material_json TEXT,UNIQUE(manifest_id,signature_scheme,key_id,signature)) WITHOUT ROWID;
+CREATE INDEX datatiles_signatures_manifest ON datatiles_signatures(manifest_id);
+CREATE INDEX datatiles_signatures_key ON datatiles_signatures(key_id);
+INSERT OR IGNORE INTO metadata(name,value) VALUES ('datatiles:integrity_profile','DataTiles-Integrity-Manifest-1');
+INSERT OR IGNORE INTO metadata(name,value) VALUES ('datatiles:signature_profile','DataTiles-Ed25519-Signature-1');
+PRAGMA user_version = 6;
+"""
+        with self.db: self.db.executescript(sql)
+
+    def _migrate_v6_to_v7(self) -> None:
+        sql = (Path(__file__).with_name("migration_v6_to_v7.sql").read_text() if Path(__file__).with_name("migration_v6_to_v7.sql").exists() else None)
+        if sql is None:
+            sql = """
+CREATE TABLE datatiles_commercial_products (product_id TEXT PRIMARY KEY,edition TEXT,issuer TEXT NOT NULL,issuer_uri TEXT,terms_uri TEXT NOT NULL,license_service_uri TEXT,protection_profile TEXT NOT NULL DEFAULT 'DataTiles-Protected-Distribution-1',created_at TEXT NOT NULL,metadata_json TEXT) WITHOUT ROWID;
+CREATE TABLE datatiles_drm_policies (product_id TEXT NOT NULL REFERENCES datatiles_commercial_products(product_id) ON DELETE CASCADE,policy_id TEXT NOT NULL,policy_profile TEXT NOT NULL DEFAULT 'W3C-ODRL-2.2',policy_json TEXT NOT NULL,PRIMARY KEY(product_id,policy_id)) WITHOUT ROWID;
+CREATE INDEX datatiles_drm_policy_product ON datatiles_drm_policies(product_id);
+INSERT OR IGNORE INTO metadata(name,value) VALUES ('datatiles:drm_profile','DataTiles-Protected-Distribution-1');
+INSERT OR IGNORE INTO metadata(name,value) VALUES ('datatiles:rights_policy_profile','W3C-ODRL-2.2');
+PRAGMA user_version = 7;
+"""
+        with self.db: self.db.executescript(sql)
+
+    def _migrate_v7_to_v8(self) -> None:
+        sql = (Path(__file__).with_name("migration_v7_to_v8.sql").read_text() if Path(__file__).with_name("migration_v7_to_v8.sql").exists() else None)
+        if sql is None:
+            sql = "CREATE TABLE datatiles_release (singleton INTEGER PRIMARY KEY CHECK(singleton=1),product_id TEXT NOT NULL,version TEXT NOT NULL,sequence INTEGER NOT NULL CHECK(sequence>=1),released_at TEXT NOT NULL,previous_version TEXT,previous_identifier TEXT,release_notes_uri TEXT,update_uri TEXT); INSERT OR IGNORE INTO metadata(name,value) VALUES ('datatiles:versioning_profile','DataTiles-Release-Versioning-1'); PRAGMA user_version=8;"
+        with self.db: self.db.executescript(sql)
 
     def close(self) -> None:
         self.db.close()
@@ -196,6 +314,10 @@ class DataTiles:
             else:
                 point = _canonical(row["value_type"], value)
                 typed = (point[0], point, None, True, True, False)
+            if name == "variable" and not is_interval:
+                policy = dict(self.db.execute("SELECT name,value FROM metadata")).get("datatiles:variable_semantics", "recommended")
+                if policy == "required" and not self.db.execute("SELECT 1 FROM datatiles_variables WHERE name=?", (typed[0],)).fetchone():
+                    raise DataTilesError(f"unregistered variable coordinate: {typed[0]}")
             members.append((row["dimension_id"], name, typed))
         members.sort(key=lambda item:item[1])
         serial = json.dumps([[name, typed[0]] for _, name, typed in members], separators=(",", ":"), ensure_ascii=False)
@@ -282,6 +404,183 @@ class DataTiles:
             except json.JSONDecodeError as exc: raise DataTilesError(f"invalid content schema JSON: {item['coordinate_set_id']}") from exc
             result.append(item)
         return result
+
+    def set_variable_semantics(self, policy: str) -> None:
+        if policy not in ("required", "recommended"):
+            raise DataTilesError("variable semantics policy must be required or recommended")
+        with self.db:
+            self.db.execute("INSERT INTO metadata(name,value) VALUES ('datatiles:variable_semantics',?) ON CONFLICT(name) DO UPDATE SET value=excluded.value", (policy,))
+
+    def add_variable(self, name: str, standard_name: str, *, vocabulary: str = "CF",
+                     vocabulary_version: str | None = None, canonical_unit: str | None = None,
+                     long_name: str | None = None, description: str | None = None) -> int:
+        from .semantic import validate_standard_name_syntax, SemanticValidationError
+        if not name or name.strip() != name:
+            raise DataTilesError("variable name must be non-empty and trimmed")
+        if not vocabulary or vocabulary.strip() != vocabulary:
+            raise DataTilesError("variable vocabulary must be non-empty and trimmed")
+        try:
+            validate_standard_name_syntax(standard_name)
+        except SemanticValidationError as exc:
+            raise DataTilesError(str(exc)) from exc
+        with self.db:
+            cur = self.db.execute(
+                "INSERT INTO datatiles_variables(name,standard_name,standard_name_vocabulary,standard_name_vocabulary_version,canonical_unit,long_name,description) VALUES (?,?,?,?,?,?,?)",
+                (name, standard_name, vocabulary, vocabulary_version, canonical_unit, long_name, description),
+            )
+            return int(cur.lastrowid)
+
+    def add_variable_identifier(self, variable: str, scheme: str, identifier: str, *,
+                                scheme_version: str | None = None, uri: str | None = None) -> None:
+        if not scheme or scheme.strip() != scheme or not identifier or identifier.strip() != identifier:
+            raise DataTilesError("identifier scheme and value must be non-empty and trimmed")
+        row = self.db.execute("SELECT variable_id FROM datatiles_variables WHERE name=?", (variable,)).fetchone()
+        if row is None:
+            raise DataTilesError(f"unknown registered variable: {variable}")
+        with self.db:
+            self.db.execute("INSERT INTO datatiles_variable_identifiers(variable_id,scheme,identifier,scheme_version,uri) VALUES (?,?,?,?,?)",
+                            (row[0], scheme, identifier, scheme_version, uri))
+
+    def variables(self) -> list[dict[str, Any]]:
+        result = []
+        for row in self.db.execute("SELECT * FROM datatiles_variables ORDER BY name"):
+            item = dict(row)
+            item["identifiers"] = [dict(r) for r in self.db.execute(
+                "SELECT scheme,identifier,scheme_version,uri FROM datatiles_variable_identifiers WHERE variable_id=? ORDER BY scheme,identifier",
+                (row["variable_id"],))]
+            item["coordinate_set_ids"] = self.find_coordinate_sets({"variable": row["name"]}) if self.db.execute(
+                "SELECT 1 FROM datatiles_dimensions WHERE name='variable'").fetchone() else []
+            result.append(item)
+        return result
+
+    def find_coordinate_sets_by_standard_name(self, standard_name: str, *, vocabulary: str = "CF") -> list[int]:
+        rows = self.db.execute("SELECT name FROM datatiles_variables WHERE standard_name_vocabulary=? AND standard_name=? ORDER BY name",
+                               (vocabulary, standard_name)).fetchall()
+        found: set[int] = set()
+        for row in rows:
+            found.update(self.find_coordinate_sets({"variable": row["name"]}))
+        return sorted(found)
+
+    def add_identifier(self, scheme: str, identifier: str, *, uri: str | None=None, primary: bool=False) -> None:
+        if not scheme or not identifier: raise DataTilesError("identifier scheme and value are required")
+        with self.db:
+            if primary: self.db.execute("UPDATE datatiles_identifiers SET is_primary=0 WHERE is_primary=1")
+            self.db.execute("INSERT INTO datatiles_identifiers(scheme,identifier,uri,is_primary) VALUES (?,?,?,?)",(scheme,identifier,uri,int(primary)))
+
+    def primary_identifier(self) -> dict[str,Any] | None:
+        row=self.db.execute("SELECT scheme,identifier,uri FROM datatiles_identifiers WHERE is_primary=1").fetchone()
+        return dict(row) if row else None
+
+    def add_related_identifier(self, scheme: str, identifier: str, relation_type: str, *, uri: str | None=None, resource_type: str | None=None, relation_information: str | None=None) -> None:
+        with self.db: self.db.execute("INSERT INTO datatiles_related_identifiers VALUES (?,?,?,?,?,?)",(scheme,identifier,relation_type,uri,resource_type,relation_information))
+
+    def related_identifiers(self) -> list[dict[str,Any]]:
+        return [dict(r) for r in self.db.execute("SELECT scheme AS relatedIdentifierType,identifier AS relatedIdentifier,relation_type AS relationType,uri,resource_type AS resourceTypeGeneral,relation_information AS relationTypeInformation FROM datatiles_related_identifiers ORDER BY relation_type,scheme,identifier")]
+
+    def add_rights(self, scope: str, license_expression: str, *, license_uri: str | None=None, rights_holder: str | None=None, rights_holder_uri: str | None=None, attribution_text: str | None=None, copyright_notice: str | None=None, access_rights: str="open", source_entity_id: str | None=None, applies_to: str | None=None) -> None:
+        from .fair import validate_spdx_expression, RIGHTS_SCOPES, ACCESS_RIGHTS, FairValidationError
+        if scope not in RIGHTS_SCOPES or access_rights not in ACCESS_RIGHTS: raise DataTilesError("invalid rights scope/access_rights")
+        try: validate_spdx_expression(license_expression)
+        except FairValidationError as exc: raise DataTilesError(str(exc)) from exc
+        with self.db: self.db.execute("INSERT INTO datatiles_rights(scope,license_expression,license_uri,rights_holder,rights_holder_uri,attribution_text,copyright_notice,access_rights,source_entity_id,applies_to) VALUES (?,?,?,?,?,?,?,?,?,?)",(scope,license_expression,license_uri,rights_holder,rights_holder_uri,attribution_text,copyright_notice,access_rights,source_entity_id,applies_to))
+
+    def rights(self) -> list[dict[str,Any]]:
+        return [dict(r) for r in self.db.execute("SELECT * FROM datatiles_rights ORDER BY scope,rights_id")]
+
+    def assign_fair_agent_role(self, agent_id: str, role: str, *, sequence: int=0) -> None:
+        with self.db: self.db.execute("INSERT INTO datatiles_fair_agents VALUES (?,?,?)",(agent_id,role,sequence))
+
+    def fair_agents(self, *, role: str) -> list[dict[str,Any]]:
+        rows=self.db.execute("SELECT a.label,a.uri,a.attributes_json FROM datatiles_fair_agents f JOIN datatiles_provenance_agents a USING(agent_id) WHERE f.role=? ORDER BY f.sequence,a.agent_id",(role,))
+        return [{"name":r["label"], **({"nameIdentifiers":[{"nameIdentifier":r["uri"],"nameIdentifierScheme":"URI"}]} if r["uri"] else {})} for r in rows]
+
+    def add_publication_evidence(self, evidence_type: str, uri: str, *, checked_at: str | None=None, checksum_algorithm: str | None=None, checksum: str | None=None, notes: str | None=None) -> None:
+        with self.db: self.db.execute("INSERT INTO datatiles_publication_evidence VALUES (?,?,?,?,?,?)",(evidence_type,uri,checked_at,checksum_algorithm,checksum,notes))
+
+    def fair_report(self, *, strict_publication: bool=False) -> dict[str,Any]:
+        meta=self.metadata(); checks=[]
+        def check(code, ok, detail, external=False): checks.append({"principle":code,"status":"pass" if ok else "fail","detail":detail,"external":external})
+        pid=self.primary_identifier(); check("F1/F3", bool(pid), "primary persistent identifier is explicitly recorded")
+        check("F2", bool(meta.get("name") and list(self.db.execute("SELECT 1 FROM datatiles_dimensions LIMIT 1"))), "descriptive and structural metadata are embedded")
+        evidence={r[0] for r in self.db.execute("SELECT evidence_type FROM datatiles_publication_evidence")}
+        check("F4", "catalogue-registration" in evidence, "catalogue registration requires external publication evidence", True)
+        check("A1", "landing-page" in evidence or bool(pid and pid.get("uri")), "identifier/landing page is recorded", True)
+        check("A2", "metadata-retention-policy" in evidence, "metadata persistence after withdrawal requires repository evidence", True)
+        check("I1/I2", bool(list(self.db.execute("SELECT 1 FROM datatiles_variables LIMIT 1"))) and bool(list(self.db.execute("SELECT 1 FROM datatiles_crs LIMIT 1"))), "semantic variables and CRS are machine-readable")
+        check("I3/R1.2", bool(list(self.db.execute("SELECT 1 FROM datatiles_provenance_entities LIMIT 1"))) and bool(list(self.db.execute("SELECT 1 FROM datatiles_provenance_activities LIMIT 1"))), "PROV-aligned entities and activities are present")
+        dataset_rights=list(self.db.execute("SELECT 1 FROM datatiles_rights WHERE scope='dataset' LIMIT 1")); metadata_rights=list(self.db.execute("SELECT 1 FROM datatiles_rights WHERE scope='metadata' LIMIT 1"))
+        check("R1.1", bool(dataset_rights and metadata_rights), "dataset and metadata rights are separately declared")
+        source_count=self.db.execute("SELECT count(*) FROM datatiles_provenance_entities WHERE entity_type='dataset'").fetchone()[0]
+        licensed_sources=self.db.execute("SELECT count(DISTINCT source_entity_id) FROM datatiles_rights WHERE scope='source' AND source_entity_id IS NOT NULL").fetchone()[0]
+        check("R1.1/R1.2", source_count==0 or licensed_sources>=source_count, "every source dataset entity has an explicit rights record")
+        check("R1.3", meta.get("datatiles:fair_profile") is not None and meta.get("datatiles:metadata_profile")=="DataCite-4.7", "community profiles are declared")
+        failures=[c for c in checks if c["status"]=="fail" and (strict_publication or not c["external"])]
+        publishable=not failures
+        return {"profile":"DataTiles FAIR publication profile","fair_principles":"Wilkinson et al. 2016","checks":checks,
+                "publishable":publishable,"passes":publishable,"strict_publication":strict_publication,
+                "integrity":{"optional":True,"signatures":len(self.signatures()),"note":"digital signatures strengthen integrity/provenance evidence but are not required for FAIRness"}}
+
+    def datacite_metadata(self) -> dict[str,Any]:
+        from .fair import datacite_metadata; return datacite_metadata(self)
+
+    def prov_json(self) -> dict[str,Any]:
+        from .fair import prov_json; return prov_json(self)
+
+    def integrity_manifest(self, *, chunk_size: int = 100000) -> dict[str,Any]:
+        from .integrity import build_manifest
+        return build_manifest(self.db, chunk_size=chunk_size)
+
+    def signatures(self) -> list[dict[str,Any]]:
+        from .integrity import list_stored_signatures
+        return list_stored_signatures(self.db)
+
+    def integrity_status(self, *, recompute: bool=False, chunk_size: int=100000) -> dict[str,Any]:
+        meta=self.metadata(); result={"profile":meta.get("datatiles:integrity_profile","DataTiles-Integrity-Manifest-1"),"signature_profile":meta.get("datatiles:signature_profile","DataTiles-Ed25519-Signature-1"),"signatures":self.signatures(),"trust_note":"embedded public keys establish cryptographic self-consistency, not publisher trust"}
+        if recompute:
+            result["current_manifest"]=self.integrity_manifest(chunk_size=chunk_size)
+        return result
+
+    def add_commercial_product(self, product_id: str, *, issuer: str, terms_uri: str, edition: str | None=None, issuer_uri: str | None=None, license_service_uri: str | None=None, metadata: dict[str,Any] | None=None) -> None:
+        if not product_id or not issuer or not terms_uri: raise DataTilesError("product_id, issuer, and terms_uri are required")
+        import json as _json
+        from datetime import datetime as _dt, timezone as _tz
+        created=_dt.now(_tz.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
+        with self.db: self.db.execute("INSERT INTO datatiles_commercial_products(product_id,edition,issuer,issuer_uri,terms_uri,license_service_uri,protection_profile,created_at,metadata_json) VALUES (?,?,?,?,?,?,?,?,?)",(product_id,edition,issuer,issuer_uri,terms_uri,license_service_uri,"DataTiles-Protected-Distribution-1",created,_json.dumps(metadata or {},sort_keys=True,separators=(",",":"))))
+
+    def add_drm_policy(self, product_id: str, policy_id: str, policy: dict[str,Any], *, profile: str="W3C-ODRL-2.2") -> None:
+        import json as _json
+        if not isinstance(policy,dict): raise DataTilesError("DRM/ODRL policy must be a JSON object")
+        with self.db: self.db.execute("INSERT INTO datatiles_drm_policies(product_id,policy_id,policy_profile,policy_json) VALUES (?,?,?,?)",(product_id,policy_id,profile,_json.dumps(policy,sort_keys=True,separators=(",",":"),ensure_ascii=False)))
+
+    def commercial_products(self) -> list[dict[str,Any]]:
+        import json as _json
+        rows=[]
+        for r in self.db.execute("SELECT * FROM datatiles_commercial_products ORDER BY product_id"):
+            d=dict(r); d["metadata"]=_json.loads(d.pop("metadata_json") or "{}"); rows.append(d)
+        return rows
+
+    def drm_policies(self, product_id: str | None=None) -> list[dict[str,Any]]:
+        import json as _json
+        q="SELECT * FROM datatiles_drm_policies"; args=()
+        if product_id is not None: q+=" WHERE product_id=?"; args=(product_id,)
+        q+=" ORDER BY product_id,policy_id"
+        out=[]
+        for r in self.db.execute(q,args): d=dict(r); d["policy"]=_json.loads(d.pop("policy_json")); out.append(d)
+        return out
+
+    def drm_status(self) -> dict[str,Any]:
+        meta=self.metadata()
+        return {"optional":True,"profile":meta.get("datatiles:drm_profile","DataTiles-Protected-Distribution-1"),"rights_policy_profile":meta.get("datatiles:rights_policy_profile","W3C-ODRL-2.2"),"products":self.commercial_products(),"policies":self.drm_policies(),"warning":"DRM enforces distribution access; it does not create copyright, relicence sources, establish scientific validity, or imply navigation safety."}
+
+    def set_release(self, product_id: str, version: str, sequence: int, *, released_at: str, previous_version: str | None=None, previous_identifier: str | None=None, release_notes_uri: str | None=None, update_uri: str | None=None) -> None:
+        if not product_id or not version or int(sequence) < 1:
+            raise DataTilesError("product_id, version, and positive sequence are required")
+        with self.db:
+            self.db.execute("INSERT INTO datatiles_release(singleton,product_id,version,sequence,released_at,previous_version,previous_identifier,release_notes_uri,update_uri) VALUES (1,?,?,?,?,?,?,?,?) ON CONFLICT(singleton) DO UPDATE SET product_id=excluded.product_id,version=excluded.version,sequence=excluded.sequence,released_at=excluded.released_at,previous_version=excluded.previous_version,previous_identifier=excluded.previous_identifier,release_notes_uri=excluded.release_notes_uri,update_uri=excluded.update_uri", (product_id,version,int(sequence),released_at,previous_version,previous_identifier,release_notes_uri,update_uri))
+
+    def release(self) -> dict[str,Any] | None:
+        row = self.db.execute("SELECT product_id,version,sequence,released_at,previous_version,previous_identifier,release_notes_uri,update_uri FROM datatiles_release WHERE singleton=1").fetchone()
+        return dict(row) if row else None
 
     def add_crs(self, role: str, *, authority: str | None = None, code: str | None = None,
                 uri: str | None = None, wkt2: str | None = None, projjson: str | None = None,
@@ -507,7 +806,7 @@ class DataTiles:
             temporary.unlink(missing_ok=True)
             raise
 
-    def validate(self) -> list[str]:
+    def validate(self, *, cf_table: str | Path | None = None, require_variable_semantics: bool = False) -> list[str]:
         errors: list[str] = []
         metadata_columns=[row[1] for row in self.db.execute("PRAGMA table_info(metadata)")]
         tiles_columns=[row[1] for row in self.db.execute("PRAGMA table_info(tiles)")]
@@ -523,7 +822,7 @@ class DataTiles:
         if fk:
             errors.append(f"foreign-key violations: {len(fk)}")
         if int(self.db.execute("PRAGMA application_id").fetchone()[0]) != 0x44415441: errors.append("invalid DataTiles application_id")
-        if int(self.db.execute("PRAGMA user_version").fetchone()[0]) != 3: errors.append("unsupported schema revision")
+        if int(self.db.execute("PRAGMA user_version").fetchone()[0]) != 8: errors.append("unsupported schema revision")
         missing_profiles=self.db.execute("SELECT count(*) FROM datatiles_coordinate_sets s WHERE EXISTS (SELECT 1 FROM datatiles_tiles t WHERE t.coordinate_set_id=s.coordinate_set_id) AND NOT EXISTS (SELECT 1 FROM datatiles_contents c WHERE c.coordinate_set_id=s.coordinate_set_id)").fetchone()[0]
         if missing_profiles: errors.append(f"coordinate sets missing content profiles: {missing_profiles}")
         for set_row in self.db.execute("SELECT coordinate_set_id,canonical_key FROM datatiles_coordinate_sets"):
@@ -558,6 +857,26 @@ class DataTiles:
                     value=json.loads(blob)
                     if not isinstance(value,dict) or value.get("type") not in ("FeatureCollection","Feature"): raise ValueError
                 except (UnicodeDecodeError,json.JSONDecodeError,ValueError): errors.append(f"invalid GeoJSON tile: {row['coordinate_set_id']}")
+        policy=dict(self.db.execute("SELECT name,value FROM metadata")).get("datatiles:variable_semantics", "recommended")
+        variable_dim=self.db.execute("SELECT dimension_id,value_type,extent_kind FROM datatiles_dimensions WHERE name='variable'").fetchone()
+        if variable_dim is not None:
+            if variable_dim["value_type"] != "text" or variable_dim["extent_kind"] != "point":
+                errors.append("semantic variable dimension must be text with point extent")
+            if policy == "required" or require_variable_semantics:
+                missing=self.db.execute(
+                    "SELECT v.canonical_value FROM datatiles_values v WHERE v.dimension_id=? AND NOT EXISTS (SELECT 1 FROM datatiles_variables r WHERE r.name=v.canonical_value) ORDER BY v.canonical_value",
+                    (variable_dim["dimension_id"],)).fetchall()
+                for row in missing: errors.append(f"unregistered variable coordinate: {row[0]}")
+        if cf_table is not None:
+            try:
+                from .semantic import load_cf_standard_name_table, validate_cf_standard_name, SemanticValidationError
+                table=load_cf_standard_name_table(cf_table)
+                for row in self.db.execute("SELECT name,standard_name,standard_name_vocabulary,canonical_unit FROM datatiles_variables"):
+                    if row["standard_name_vocabulary"].upper() == "CF":
+                        try: validate_cf_standard_name(row["standard_name"], canonical_unit=row["canonical_unit"], table=table)
+                        except SemanticValidationError as exc: errors.append(f"variable {row['name']}: {exc}")
+            except (OSError, ValueError) as exc:
+                errors.append(f"CF standard-name table: {exc}")
         selected=self.db.execute("SELECT coordinate_set_id FROM datatiles_selected_slice WHERE singleton=1").fetchone()
         if selected is None: errors.append("selected-slice singleton is missing")
         elif selected[0] is not None:
@@ -582,18 +901,3 @@ class DataTiles:
             if not self.db.execute("SELECT 1 FROM datatiles_provenance_activities LIMIT 1").fetchone(): errors.append("missing FAIR provenance activities")
             if not self.db.execute("SELECT 1 FROM datatiles_crs WHERE role='horizontal' LIMIT 1").fetchone(): errors.append("missing FAIR horizontal CRS")
         return errors
-
-    def fair_report(self) -> dict[str, Any]:
-        metadata=self.metadata(); validation=self.validate()
-        checks={
-            "persistent_identifier":bool(metadata.get("datatiles:identifier")),
-            "rich_metadata":bool(metadata.get("description") and metadata.get("datatiles:keywords")),
-            "standard_access":bool(metadata.get("datatiles:landing_page")),
-            "formal_semantics":bool(self.db.execute("SELECT 1 FROM datatiles_dimensions LIMIT 1").fetchone()),
-            "qualified_provenance":bool(self.db.execute("SELECT 1 FROM datatiles_provenance_relations LIMIT 1").fetchone()),
-            "explicit_license":bool(metadata.get("datatiles:license")),
-            "community_crs":bool(self.db.execute("SELECT 1 FROM datatiles_crs LIMIT 1").fetchone()),
-        }
-        return {"profile":"DataTiles FAIR-by-design 1.0-draft","declared":metadata.get("datatiles:fair_profile")=="1",
-                "checks":checks,"container_validation":validation,"passes":all(checks.values()) and not validation,
-                "caveat":"Catalogue registration, PID resolution, and metadata-retention policy require repository-level verification."}

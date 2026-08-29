@@ -63,3 +63,15 @@ The rendering pipeline is therefore `DNT1 arrays → sampled numeric surface →
 *Figure 9. Executed `0 < depth < 200` m and sand-or-mud query with 820 highlighted analysis cells. The result is a request-time GeoJSON derivation and not a stored portrayal.*
 
 For development, build the demo, run `datatiles-serve work/gaeta-to-maratea.datatiles --port 8080`, and visit `http://127.0.0.1:8080/playground`. The OpenLayers dependency is version-pinned. A production deployment should self-host the pinned asset, apply CSP and request rate limits, cache derived responses by canonical query plus dataset checksum, and execute expensive processing through a bounded worker service.
+
+## FAIR evidence panel
+
+The live playground now exposes the container's principle-level FAIR report and rights-record count, with machine-readable `/fair`, `/rights`, `/provenance`, and `/datacite` resources. This is intentionally adjacent to the scientific visualization: a user must be able to inspect lineage and reuse conditions without leaving the object. The panel never converts FAIRness into a safety or scientific-validity badge. Static exports embed the same rights, PROV, DataCite candidate metadata, primary identifier and FAIR report in `data/manifest.json`.
+
+## Cryptographic integrity evidence
+
+The playground may display the number of recorded signature records via `/integrity`. This is disclosure, not verification or trust. Full manifest computation is available explicitly at `/integrity/manifest` because it can require reading every scientific tile. Private-key signing is intentionally absent from the HTTP service.
+
+## Commercial/DRM disclosure
+
+An authorized plaintext playground may expose non-secret commercial product metadata and ODRL policy. A public storefront/demo should disclose product identity, issuer, terms URI, access status, and required source acknowledgements without exposing protected scientific payloads or key material. DRM status is not a safety or quality badge.

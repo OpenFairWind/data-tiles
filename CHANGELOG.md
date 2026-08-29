@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.19.0 — 2026-08-29
+
+- advances the DataTiles schema to revision 8 with CF-first semantic variables, FAIR publication metadata, provenance, rights, optional integrity signatures, optional protected distribution, and immutable release identity;
+- adds deterministic NetCDF, GRIB2, and Zarr scientific import utilities that preserve numeric DNT1 values and record source and conversion provenance;
+- adds the optional Flask/SQLAlchemy DataTiles Store PWA, API, authentication, agreement enforcement, provider-neutral commerce, user libraries, and update discovery;
+- expands the normative specification, migration addenda, source-citation register, white paper, tutorials, and regression coverage for revisions 4 through 8.
+
 ## 0.10.0 — 2026-08-27
 
 - adds a command-line static-demo exporter, a Safari-compatible client-side numeric/vector portrayal, the full scientific playground toolset (relief, contours, smart labels, profile, compound query, and interactive 3D mesh), embedded checksum-identified data for direct `file://` use, an offline OpenLayers bundle, and an optional loopback-only launcher;

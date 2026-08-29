@@ -33,3 +33,9 @@ FAIR access does not imply frictionless or anonymous download. A provider may re
 ## FAIR maturity
 
 FAIRness should be reported as individual test outcomes, not a single opaque score. Passing container checks demonstrates machine actionability but cannot establish that an external PID is registered, a repository will retain metadata, or a scientific vocabulary is governed. Those repository-level assertions require publication evidence and periodic audit.
+
+## Academic publication profile
+
+The publication gate is strengthened by `fair-publication-profile.md`. DataTiles separates persistent identifiers, DataCite 4.7 citation metadata, W3C PROV-aligned lineage, SPDX rights, and external repository evidence. Dataset, metadata, and every upstream source MUST have distinct machine-actionable rights records. A public URL is never interpreted as permission. A strict publication report MUST fail when PID, catalogue registration, landing-page evidence, metadata-retention evidence, source rights, source lineage, or community semantics are absent.
+
+FAIR reports expose principle-level outcomes and repository-dependent assertions; they MUST NOT report an unexplained scalar FAIR score.
