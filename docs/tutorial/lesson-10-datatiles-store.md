@@ -39,9 +39,9 @@ The indexer extracts metadata, CF semantic variables, rights/licence records, pr
 
 ## 5. Explore a product
 
-Select **Explore**. The browser provides pan/zoom, coverage fitting, a portrayal-layer toggle, variables, rights/citation, provenance and metadata panels.
+Select **Explore**. The browser provides an exact selected-slice preview beside variables, rights/citation, provenance, release, integrity, commercial-profile and metadata panels.
 
-DataTiles stores TMS rows while web clients use XYZ. The Store converts only at the HTTP interface. A PNG/JPEG/WebP selected compatibility slice is displayable. A DNT1 scientific matrix is not guessed into colors: prepare/select a declared portrayal profile when a preview is required.
+DataTiles stores TMS rows while web clients conventionally use XYZ. The Store's standard portrayal-tile route performs that row conversion only at the HTTP interface and accepts declared PNG/JPEG/WebP slices. The separate selected-slice preview route returns one exact stored tile and its declared encoding. For DNT1, the Store browser applies a bounded decoder and a documented finite-value colour ramp ephemerally in the canvas; it does not persist or advertise that visualization as a stored portrayal. Third-party scientific clients may instead decode the same values using their own explicitly documented algorithm.
 
 The permanent **Not for navigation** notice remains visible for the reference workflow.
 
@@ -51,11 +51,11 @@ The built-in roles provide progressively broader permissions. Create groups such
 
 ## 7. Deploy as a PWA safely
 
-The service worker makes the user interface installable but does not cache APIs, map payloads or file downloads. In production place Flask behind HTTPS, enable secure session cookies, keep the secret key and bootstrap password in a secret manager, and use a production WSGI server.
+The service worker makes the user interface installable but does not cache APIs, selected-slice preview payloads, portrayal tiles, or file downloads. In production place Flask behind HTTPS, enable secure session cookies, keep the secret key and bootstrap password in a secret manager, and use a production WSGI server.
 
 ## 8. Commercial products
 
-The Store is not the revision-7 DRM entitlement server. For proprietary products, keep content keys and customer private material in a dedicated KMS/licence service. Catalog metadata may advertise the product, issuer and terms, while actual authorization/decryption remains an independently secured subsystem.
+The Store is not a protected-distribution entitlement server. For proprietary products, keep content keys and customer private material in a dedicated KMS/licence service. Catalog metadata may advertise the product, issuer and terms, while actual authorization/decryption remains an independently secured subsystem.
 
 ## 9. Publication checklist
 
@@ -86,6 +86,16 @@ curl -L -H "Authorization: Bearer $TOKEN" \
   -o product.datatiles \
   http://localhost:8080/api/v1/catalog/1/download
 ```
+
+After acceptance, retrieve the exact preview bytes and their declared representation headers:
+
+```bash
+curl -D preview.headers -H "Authorization: Bearer $TOKEN" \
+  -o selected-tile.bin \
+  http://localhost:8080/api/v1/catalog/1/preview
+```
+
+`X-DataTiles-Encoding: DNT1` means the response remains a scientific array. It MUST NOT be relabelled as PNG/JPEG/WebP merely because a client can colour it.
 
 ## 11. Use the managers group for DataTiles CRUD
 

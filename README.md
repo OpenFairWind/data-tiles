@@ -118,11 +118,11 @@ See the [documentation index](docs/README.md), especially the normative [specifi
 
 The [onboard intelligence white paper](docs/white-paper.md) presents DataTiles as an offline-first evidence substrate for marine and automotive data-driven AI. It covers feature contracts, uncertainty, provenance, fallback, cybersecurity, human authority, environmental protection, and a practical assurance lifecycle. DataTiles itself is not an approved nautical chart, ECDIS, automated-driving function, or certified safety component.
 
-New users can follow the [five-lesson DataTiles zero-to-hero tutorial](docs/tutorial/README.md), which combines formal discussion with a fully offline mixed raster/vector laboratory dataset.
+New users can follow the [ten-lesson DataTiles zero-to-hero tutorial](docs/tutorial/README.md), which combines formal discussion with a fully offline mixed raster/vector laboratory dataset and advanced FAIR, integrity, protected-distribution, and Store exercises.
 
 ## Data acknowledgement and citation — required reading
 
-Data Tiles demo derivatives are multi-source scientific products. Every map, MBTiles file, figure, service, paper, and release must visibly credit every dataset that actually contributed cells or features and must ship its machine-readable provenance. The MIT software licence does not relicense any input data.
+Data Tiles demo derivatives are multi-source scientific products. Every map, MBTiles file, figure, service, paper, and release must visibly credit every dataset that actually contributed cells or features and must ship its machine-readable provenance. The Apache-2.0 software licence does not relicense any input data.
 The authoritative, source-by-source register is docs/data_sources_and_citation.md. It gives full bibliographic citations, mandatory map acknowledgements, licences, persistent identifiers, coverage/resolution limitations, frozen-manifest locations, and a FAIR release checklist.
 
 For the current From Gaeta to Maratea production build, acknowledge:
@@ -135,8 +135,6 @@ The required short-form map credit is:
 
 Bathymetry: Foglini, Tonielli & Rovere (2024), JammeGaia22/MGDS, doi:10.60521/331667; EMODnet Bathymetry Consortium DTM 2024, doi:10.12770/cf51df64-56f9-4a99-b1aa-36b8d7b743a1. Land/coastline: GSHHG 2.3.7 and S2Coast-2023. Context: © OpenStreetMap contributors, ODbL 1.0. Not for navigation.
 Do not list GMRT, GEBCO, EMODnet thematic products, or ISPRA as contributors unless the specific run manifest proves that they were used. Citation is source-specific evidence, not a generic project boilerplate.
-
-> **Software-licence consistency check.** The current public DataTiles repository declares Apache-2.0 in `LICENSE`. The preceding requested wording says MIT. Before publication, the README wording and `LICENSE` MUST agree; regardless of which software licence is adopted, it does not relicense input data.
 
 ## How to cite DataTiles
 
@@ -162,10 +160,10 @@ DataTiles can optionally package a finalized lawful commercial product as an enc
 
 ## DataTiles Store PWA
 
-The optional `/store` application is a Python/Flask progressive web application backed by SQLAlchemy. It indexes machine-readable metadata from stored DataTiles files into a separate application database, supports full catalog search, authenticated browsing, role/group based authorization, an interactive chart-explorer-style preview of declared portrayal slices, and authorized downloads of the original DataTiles files. The bootstrap `admin` user belongs to the `administrators` group with the `admin` role; its initial password is explicitly configured in `store/config.py` and must be changed/secret-managed for production. The PWA never treats numeric scientific matrices as imagery and its service worker does not cache protected APIs, map payloads, or downloads. See `docs/store-pwa.md`. Managed authentication, verified-email self-registration, Google OIDC, Microsoft Entra ID tenants, generic OAuth2/OIDC, SMTP, public callback URL, and agreement settings are administrator-configurable in the PWA and API. Complete Store help is maintained under `store/docs/` and rendered by the PWA Help section.
+The optional `/store` application is a Python/Flask progressive web application backed by SQLAlchemy. It indexes machine-readable metadata from stored DataTiles files into a separate application database, supports full catalog search, authenticated browsing, role/group based authorization, exact selected-slice retrieval, client-side DNT1 portrayal, and authorized downloads of the original DataTiles files. The bootstrap `admin` user belongs to the `administrators` group with the `admin` role; its initial password is explicitly configured in `store/config.py` and must be changed/secret-managed for production. Numeric matrices remain DNT1 evidence: browser canvas pixels are ephemeral, algorithm-labelled portrayals and are never written back. The service worker excludes protected APIs, preview payloads, portrayal tiles, and downloads. See `docs/store-pwa.md`. Managed authentication, verified-email self-registration, Google OIDC, Microsoft Entra ID tenants, generic OAuth2/OIDC, SMTP, public callback URL, and agreement settings are administrator-configurable in the PWA and API. Complete Store help is maintained under `store/docs/` and rendered by the PWA Help section.
 
 ## Release versioning and optional Store payments
 
 Schema revision 8 defines `DataTiles-Release-Versioning-1`: a release can carry stable product identity, a human version label, a monotonically increasing release sequence, timestamp, predecessor, release-notes URI, and update-discovery URI. Published versioned releases are immutable; corrections and updates are new DataTiles objects with new checksums and signatures where used.
 
-The optional Store 0.4 adds a provider-neutral payment interface, with PayPal Orders v2 as the reference adapter, plus release-specific purchase entitlements, exact download history, a user library, and update notifications for users who previously acquired older sequences. Payment is disabled by default and is legally independent from data-licence acceptance: paying for a product never creates rights that the publisher does not possess. See `store/docs/payments.md` and `store/docs/versioning-and-updates.md`.
+The optional Store 0.5 provides a provider-neutral payment interface, with PayPal Orders v2 as the reference adapter, plus release-specific purchase entitlements, exact download history, a user library, update notifications, revision-8 metadata inspection, and exact client-side scientific preview. Payment is disabled by default and is legally independent from data-licence acceptance: paying for a product never creates rights that the publisher does not possess. See `store/docs/payments.md`, `store/docs/versioning-and-updates.md`, and `store/docs/visuals.md`.

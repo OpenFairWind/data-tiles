@@ -62,4 +62,4 @@ A DataTiles release MAY include a revision-6 integrity manifest and one or more 
 
 ## Restricted and commercial access
 
-FAIR does not require that every dataset be free or anonymously downloadable. A restricted/proprietary DataTiles release may use the revision-7 DRM profile while retaining public persistent identifiers, rich metadata, source-specific citation, provenance, interoperable semantics, and explicit access conditions. DRM presence or absence is not a FAIR criterion by itself.
+FAIR does not require that every dataset be free or anonymously downloadable. A restricted/proprietary DataTiles release may use the protected-distribution profile introduced in revision 7 and retained by revision 8 while retaining public persistent identifiers, rich metadata, source-specific citation, provenance, interoperable semantics, and explicit access conditions. DRM presence or absence is not a FAIR criterion by itself.

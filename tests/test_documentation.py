@@ -93,6 +93,22 @@ def test_demo_screenshots_are_registered_jpeg_evidence():
     assert "not stored scientific variables" in register
 
 
+def test_store_figures_and_screenshots_are_registered():
+    store_docs=ROOT/"store/docs"
+    figures={"store-architecture.svg","access-gates.svg","client-side-preview.svg"}
+    images={"store-catalog.jpg","store-scientific-preview.jpg","store-agreement.jpg"}
+    register=(store_docs/"visuals.md").read_text()
+    for name in sorted(figures):
+        root=ET.parse(store_docs/"figures"/name).getroot()
+        assert root.tag=="{http://www.w3.org/2000/svg}svg"
+        assert root.attrib["role"]=="img"
+        assert name in register
+    for name in sorted(images):
+        payload=(store_docs/"images"/name).read_bytes()
+        assert payload.startswith(b"\xff\xd8\xff")
+        assert name in register
+
+
 def test_specification_is_self_sufficient_and_documents_fallback():
     text=(ROOT/"docs/specification.md").read_text()
     required=("Normative relational schema","Coordinate identity algorithm","DNT1 numeric-array encoding",

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "datatiles-store"
-version = "0.4.0"
+version = "0.5.0"
 description = "Flask progressive web catalog and explorer for DataTiles"
 requires-python = ">=3.10"
 dependencies = [

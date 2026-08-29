@@ -65,6 +65,8 @@ def api_permission_required(permission: str):
     def decorator(fn):
         @wraps(fn)
         def wrapped(*args, **kwargs):
+            if request.method not in {"GET", "HEAD", "OPTIONS"} and not request.headers.get("Authorization", "").startswith("Bearer "):
+                return jsonify({"error":"bearer_authentication_required_for_api_write"}), 401
             user = api_user()
             if current_app.config.get("ALLOW_PUBLIC_CATALOG") and permission == "catalog.view" and user is None:
                 return fn(*args, **kwargs)

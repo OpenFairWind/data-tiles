@@ -11,5 +11,6 @@ These Markdown files are the authoritative Store operations/help documentation. 
 - `agreements.md` — licence and safety acceptance.
 - `security.md` — production security and operations.
 - `troubleshooting.md` — common operational failures.
+- `visuals.md` — architecture figures, verified screenshots, and their provenance.
 
 See `payments.md` and `versioning-and-updates.md`.

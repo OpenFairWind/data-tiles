@@ -47,21 +47,32 @@ The utilities reject rather than guess for unsupported curvilinear/2-D coordinat
 
 `--max-tiles` limits accidental expansion at inappropriate zooms. `--bbox` can constrain the import domain. URL access has a timeout and is streamed to disk while hashing instead of being accumulated in memory. DNT1 itself retains its normal element and header bounds.
 
+The limit is evaluated for every non-spatial slice of every selected variable. After writing, the converter deterministically selects the first variable/slice in command/source order so the conventional MBTiles `tiles` view is coherent. That view still exposes DNT1 numeric bytes; it is not an image portrayal. The converter writes bounds and zoom metadata and runs revision-8 validation with semantic registration required before closing the output.
+
 ## Examples
 
 ```bash
 python utils/netcdf2datatiles.py input.nc output.datatiles \
-  --variable sea_floor_depth_below_geoid --zoom 8
+  --variable sea_floor_depth_below_geoid --zoom 8 \
+  --source-license CC-BY-4.0 --source-license-uri https://creativecommons.org/licenses/by/4.0/ \
+  --source-attribution "Required source credit" \
+  --dataset-license CC-BY-4.0 --dataset-license-uri https://creativecommons.org/licenses/by/4.0/
 ```
 
 ```bash
 python utils/grib2datatiles.py https://example.org/model.grib2 output.datatiles \
-  --filter-by-keys typeOfLevel=surface --variable t2m --zoom 6
+  --filter-by-keys typeOfLevel=surface --variable t2m --zoom 6 \
+  --source-license LicenseRef-Provider-Terms --source-license-uri https://example.org/model-terms \
+  --source-attribution "Required provider credit" \
+  --dataset-license LicenseRef-Derived-Terms --dataset-license-uri https://example.org/derived-terms
 ```
 
 ```bash
 python utils/zarr2datatiles.py ./ocean.zarr output.datatiles \
-  --variable depth --zoom 7
+  --variable depth --zoom 7 \
+  --source-license CC-BY-4.0 --source-license-uri https://creativecommons.org/licenses/by/4.0/ \
+  --source-attribution "Required source credit" \
+  --dataset-license CC-BY-4.0 --dataset-license-uri https://creativecommons.org/licenses/by/4.0/
 ```
 
 Validate semantic registration after import:

@@ -13,5 +13,8 @@ This is the authoritative operational documentation for the DataTiles Store PWA.
 - [REST API](api.md)
 - [Security and operations](security.md)
 - [Troubleshooting](troubleshooting.md)
+- [Figures, screenshots, and visual provenance](visuals.md)
+
+![Store architecture](figures/store-architecture.svg)
 
 Production operators should read the configuration, security, agreements, and payment sections before exposing a Store to the Internet. DataTiles data licences remain independent of the Apache-2.0 Store software licence.

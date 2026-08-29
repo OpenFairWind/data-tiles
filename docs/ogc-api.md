@@ -12,7 +12,14 @@ Run `datatiles-serve FILE --host 127.0.0.1 --port 8080`. The server is read-only
 | `/collections/{id}/dimensions` | typed point/interval dimensions |
 | `/collections/{id}/crs` | scientific CRS records |
 | `/collections/{id}/contents` | raster/vector types, media types, encodings, schemas, and coordinate selectors |
+| `/collections/{id}/variables` | semantic variable registry and external identifiers |
+| `/collections/{id}/rights` | structured dataset, metadata, source, portrayal, and software rights |
 | `/collections/{id}/provenance` | provenance graph |
+| `/collections/{id}/datacite` | DataCite-shaped publication metadata; not a DOI-registration claim |
+| `/collections/{id}/fair` | principle-level container and external-evidence assessment |
+| `/collections/{id}/integrity` | logical-manifest and signature status |
+| `/collections/{id}/commercial` | optional commercial-policy metadata; never secret keys |
+| `/collections/{id}/release` | stable product identity and monotonic release sequence |
 | `/collections/{id}/profile` | numeric two-point depth transect as JSON, CSV, or SVG |
 | `/playground` | OpenLayers multidimensional scientific playground |
 | `/collections/{id}/point` | cursor values with source tile and pixel evidence |

@@ -517,13 +517,13 @@ def build(config_path: Path, work: Path) -> None:
               if "nautical" in config["sources"] else {"type":"FeatureCollection","features":[]})
     palette=np.array([[210,210,210],[170,170,170],[175,145,110],[105,85,70],[224,204,145],
                       [160,145,120],[115,105,100],[90,150,70],[35,135,75],[205,85,100]],dtype=np.uint8)
-    seafloor_preview=work/"seafloor-class-preview.png"; Image.fromarray(palette[fused],"RGB").save(seafloor_preview,optimize=False,compress_level=9)
+    seafloor_preview=work/"seafloor-class-preview.png"; Image.fromarray(palette[fused]).save(seafloor_preview,optimize=False,compress_level=9)
     valid_depth=bathy>=0; normalized=np.clip(bathy,0,2000)/2000
     bathy_rgb=np.empty((depth_height,depth_width,3),dtype=np.uint8); bathy_rgb[:]=[232,220,170]
     bathy_rgb[valid_depth,0]=(25+35*(1-normalized[valid_depth])).astype(np.uint8)
     bathy_rgb[valid_depth,1]=(70+120*(1-normalized[valid_depth])).astype(np.uint8)
     bathy_rgb[valid_depth,2]=(115+130*(1-normalized[valid_depth])).astype(np.uint8)
-    bathymetry_preview=work/"bathymetry-preview.png"; Image.fromarray(bathy_rgb,"RGB").save(bathymetry_preview,optimize=False,compress_level=9)
+    bathymetry_preview=work/"bathymetry-preview.png"; Image.fromarray(bathy_rgb).save(bathymetry_preview,optimize=False,compress_level=9)
     output=work/config.get("output","gaeta-to-maratea.datatiles")
     if output.exists(): output.unlink()
     tile_size=config["tiles"]["tile_size"]; minzoom=config["tiles"]["minzoom"]; maxzoom=config["tiles"]["maxzoom"]

@@ -15,7 +15,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 from .agreements import accept_current, agreement_document, current_acceptance
-from .catalog import extract_metadata, index_file, resolve_item_path, scan_catalog, tile_bytes
+from .catalog import extract_metadata, index_file, preview_tile, resolve_item_path, scan_catalog, tile_bytes
 from .db import close_db, get_db, init_engine
 from .models import AgreementAcceptance, ApiToken, AuditEvent, CatalogItem, Group, Role, User, PaymentTransaction, PurchaseRecord, DownloadRecord, UpdateNotification
 from .security import api_permission_required, api_user, issue_token, permission_required, safe_next_url
@@ -96,6 +96,22 @@ def create_app(config_object=None) -> Flask:
                 "agreement_url":f"/api/v1/catalog/{item.id}/agreement",
             }), 428
         return None
+
+    def preview_response(item):
+        result = preview_tile(resolve_item_path(item, app.config["CATALOG_DIR"]))
+        if result is None:
+            abort(404)
+        media_type = "application/vnd.datatiles.numeric" if result["encoding"] == "DNT1" else result["media_type"]
+        response = Response(result["tile_data"], mimetype=media_type)
+        response.headers.update({
+            "Cache-Control": "private, no-store",
+            "X-DataTiles-Data-Type": result["data_type"],
+            "X-DataTiles-Encoding": result["encoding"],
+            "X-DataTiles-Zoom": str(result["zoom_level"]),
+            "X-DataTiles-Column": str(result["tile_column"]),
+            "X-DataTiles-TMS-Row": str(result["tile_row"]),
+        })
+        return response
 
     def save_uploaded(upload, *, final_name=None, replacing: CatalogItem | None = None):
         if not upload or not upload.filename:
@@ -204,6 +220,13 @@ def create_app(config_object=None) -> Flask:
         record_download(get_db(),current_user,item,"web"); audit("catalog.download", "catalog_item", item.id, {"sha256":item.sha256}); get_db().commit()
         return send_file(resolve_item_path(item, app.config["CATALOG_DIR"]), as_attachment=True, download_name=item.filename,
                          mimetype="application/vnd.sqlite3", conditional=True)
+
+    @app.get("/catalog/<int:item_id>/preview")
+    @permission_required("catalog.preview")
+    def browser_preview(item_id):
+        item = get_item(item_id); gate = browser_agreement_gate(item)
+        if gate: return gate
+        return preview_response(item)
 
     @app.post("/admin/catalog/scan")
     @permission_required("catalog.manage")
@@ -396,6 +419,13 @@ def create_app(config_object=None) -> Flask:
         if gate: return gate
         u=api_user(); record_download(get_db(),u,item,"api"); audit("catalog.download","catalog_item",item.id,{"sha256":item.sha256},user=u); get_db().commit()
         return send_file(resolve_item_path(item,app.config["CATALOG_DIR"]),as_attachment=True,download_name=item.filename,mimetype="application/vnd.sqlite3",conditional=True)
+
+    @app.get("/api/v1/catalog/<int:item_id>/preview")
+    @api_permission_required("catalog.preview")
+    def api_preview(item_id):
+        item = get_item(item_id); gate = api_agreement_gate(item)
+        if gate: return gate
+        return preview_response(item)
 
     @app.post("/api/v1/catalog")
     @csrf.exempt
@@ -627,6 +657,7 @@ def openapi_document():
             "/api/v1/catalog/{id}/agreement":{"get":{"summary":"Read current data licence and safety agreement/status"}},
             "/api/v1/catalog/{id}/agreement/accept":{"post":{"summary":"Explicitly accept current licence and safety/no-liability agreement"}},
             "/api/v1/catalog/{id}/download":{"get":{"summary":"Download exact DataTiles release after agreement acceptance and any required purchase entitlement"}},
+            "/api/v1/catalog/{id}/preview":{"get":{"summary":"Retrieve one exact selected-slice tile for client-side portrayal after agreement acceptance"}},
             "/api/v1/payments/providers":{"get":{"summary":"Discover optional payment providers"}},
             "/api/v1/catalog/{id}/checkout":{"post":{"summary":"Create a provider-neutral checkout transaction"}},
             "/api/v1/payments/{transaction_id}/capture":{"post":{"summary":"Capture an approved payment"}},

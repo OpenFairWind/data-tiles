@@ -399,6 +399,8 @@ def convert_dataset(dataset: Any, target: str | Path, *, source: ResolvedSource,
         raise ConversionError(f"target already exists: {target}")
 
     stats = {"variables": 0, "slices": 0, "tiles": 0}
+    first_coordinates: dict[str, Any] | None = None
+    output_bounds: tuple[float, float, float, float] | None = None
     with DataTiles(target, create=True, name=target.stem, tile_format="application/vnd.datatiles.numeric") as store:
         ensure_dimensions(store, dataset, arrays, lat_names=lat_names, lon_names=lon_names)
         store.add_crs("horizontal", authority="EPSG", code="3857", uri="http://www.opengis.net/def/crs/EPSG/0/3857")
@@ -432,10 +434,11 @@ def convert_dataset(dataset: Any, target: str | Path, *, source: ResolvedSource,
             lat_name, lon_name = spatial[str(da.name)]
             lat_axis, lon_axis, lat_order, lon_order = normalized_axes(da, lat_name, lon_name)
             actual_bbox = source_bbox(lat_axis, lon_axis, bbox)
+            output_bounds = actual_bbox if output_bounds is None else (
+                min(output_bounds[0], actual_bbox[0]), min(output_bounds[1], actual_bbox[1]),
+                max(output_bounds[2], actual_bbox[2]), max(output_bounds[3], actual_bbox[3]),
+            )
             xs, ys = tile_ranges(actual_bbox, zoom)
-            planned = len(xs) * len(ys)
-            if stats["tiles"] + planned > max_tiles:
-                raise ConversionError(f"conversion would exceed --max-tiles={max_tiles}; select variables/bbox or change zoom")
             unit = str(da.attrs.get("units") or "").strip() or None
             fill = da.attrs.get("_FillValue", da.attrs.get("missing_value", DEFAULT_NODATA))
             try:
@@ -446,9 +449,14 @@ def convert_dataset(dataset: Any, target: str | Path, *, source: ResolvedSource,
                 nodata = DEFAULT_NODATA
 
             for extra_coords, slice_da in iter_non_spatial_slices(da, lat_name, lon_name):
+                planned = len(xs) * len(ys)
+                if stats["tiles"] + planned > max_tiles:
+                    raise ConversionError(f"conversion would exceed --max-tiles={max_tiles}; select variables/bbox or change zoom")
                 values = np.asarray(slice_da.transpose(lat_name, lon_name).values, dtype="float64")
                 values = values[np.asarray(lat_order), :][:, np.asarray(lon_order)]
                 coordinates = {"variable": token, **extra_coords}
+                if first_coordinates is None:
+                    first_coordinates = dict(coordinates)
                 stats["slices"] += 1
                 for x in xs:
                     for y in ys:
@@ -469,4 +477,14 @@ def convert_dataset(dataset: Any, target: str | Path, *, source: ResolvedSource,
                         store.link_tile_provenance(zoom, x, y, coordinates, entity_id, xyz=True)
                         stats["tiles"] += 1
             stats["variables"] += 1
+        if first_coordinates is None:
+            raise ConversionError("conversion produced no coordinate slices")
+        store.select(first_coordinates)
+        assert output_bounds is not None
+        store.set_metadata("bounds", ",".join(format(value, ".15g") for value in output_bounds))
+        store.set_metadata("minzoom", str(zoom))
+        store.set_metadata("maxzoom", str(zoom))
+        errors = store.validate(require_variable_semantics=True)
+        if errors:
+            raise ConversionError("generated DataTiles failed validation: " + "; ".join(errors))
     return stats

@@ -1,14 +1,13 @@
 {% extends 'base.html' %}{% block title %}{{item.title}} · DataTiles Store{% endblock %}
-{% block head %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">{% endblock %}
 {% block content %}
 <section class="explorer" data-item-id="{{item.id}}" data-bounds='{{ detail.bounds|tojson }}' data-minzoom="{{item.minzoom or ''}}" data-maxzoom="{{item.maxzoom or ''}}" data-accepted="{{'1' if accepted else '0'}}">
-  <div id="map"></div>
+  <div class="preview-stage"><canvas id="scientificPreview" width="768" height="768" aria-label="Client-side DataTiles selected-slice preview"></canvas><div class="preview-key"><strong id="previewTitle">Selected-slice preview</strong><span id="previewStatus">{% if accepted %}Loading exact stored tile…{% else %}Agreement acceptance is required before preview data are retrieved.{% endif %}</span></div></div>
   <aside class="panel">
     <a class="back" href="{{url_for('catalog')}}">← Catalog</a>
     <h1>{{item.title}}</h1><p>{{item.description or ''}}</p>
     <div class="notice">NOT SUITABLE FOR NAVIGATION · DATA PROVIDED AS IS</div><details open><summary>Release & availability</summary><p><b>Product:</b> {{item.product_id or "unversioned"}}<br><b>Version:</b> {{item.product_version or "not declared"}}{% if item.product_sequence %} · sequence {{item.product_sequence}}{% endif %}</p>{% if paid %}<p><b>Price:</b> {{item.price_amount}} {{item.price_currency}}</p>{% if purchased %}<div class="accepted">Purchased entitlement recorded.</div>{% else %}<a class="primary" href="{{url_for('checkout',item_id=item.id)}}">Purchase this release</a>{% endif %}{% endif %}</details>
     {% if not accepted and current_user.is_authenticated and can('agreements.accept') %}<div class="agreement-required"><strong>Agreement required</strong><p>Preview and download remain locked until the current data licence and safety/no-liability agreement is accepted.</p><a class="primary" href="{{url_for('agreement',item_id=item.id)}}">Review and accept</a></div>{% elif accepted %}<div class="accepted">Current release agreement accepted.</div>{% endif %}
-    <details open><summary>Explore</summary><label class="check"><input id="overlayToggle" type="checkbox" {% if accepted %}checked{% else %}disabled{% endif %}> DataTiles portrayal</label><label>Measurement<select id="units"><option value="m">Meters</option><option value="ft">Feet</option></select></label><button id="fit">Fit coverage</button></details>
+    <details open><summary>Explore stored evidence</summary><p>The preview fetches one exact tile from the selected slice. DNT1 values are decoded and coloured in this browser; the Store does not persist a rendered substitute.</p><button id="reloadPreview" {% if not accepted %}disabled{% endif %}>Reload selected tile</button><div id="previewFacts" class="preview-facts"></div></details>
     <details open><summary>Variables</summary><div class="chips">{% for v in detail.variables %}<span title="{{v.standard_name}}">{{v.name}} · {{v.standard_name}}</span>{% else %}<em>No semantic variable registry.</em>{% endfor %}</div></details>
     <details open><summary>Rights & citation</summary>{% for r in detail.rights %}<div class="fact"><b>{{r.scope}}</b><span>{{r.license_expression}}</span><small>{{r.attribution_text or ''}}</small></div>{% else %}<p>No structured rights record. Availability is not permission to reuse.</p>{% endfor %}<a href="{{url_for('agreement',item_id=item.id)}}">Agreement and acceptance status</a></details>
     <details><summary>Provenance</summary><p>{{detail.provenance.entities|length}} entities · {{detail.provenance.activities|length}} activities</p>{% for e in detail.provenance.entities[:8] %}<div class="fact"><b>{{e.label or e.entity_id}}</b><small>{{e.uri or ''}}</small></div>{% endfor %}</details>
@@ -19,4 +18,4 @@
   </aside>
 </section>
 {% endblock %}
-{% block scripts %}<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script><script src="{{url_for('static',filename='explorer.js')}}"></script>{% endblock %}
+{% block scripts %}<script src="{{url_for('static',filename='explorer.js')}}"></script>{% endblock %}

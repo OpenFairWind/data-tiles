@@ -47,7 +47,7 @@ def _coordinates(query: dict[str, list[str]], dimensions: set[str]) -> dict[str,
 
 def handler_for(path: Path):
     class Handler(BaseHTTPRequestHandler):
-        server_version = "DataTiles/0.15"
+        server_version = "DataTiles/0.20"
 
         def do_GET(self) -> None:
             parsed = urlparse(self.path); parts = [unquote(p) for p in parsed.path.split("/") if p]
@@ -105,13 +105,6 @@ def handler_for(path: Path):
                 if parts == ["collections", collection, "provenance"]: return _json(self,200,store.prov_json())
                 if parts == ["collections", collection, "datacite"]: return _json(self,200,store.datacite_metadata())
                 if parts == ["collections", collection, "crs"]: return _json(self, 200, {"crs":crs})
-                if parts == ["collections", collection, "fair"]: return _json(self,200,store.fair_report())
-                if parts == ["collections", collection, "provenance"]:
-                    return _json(self, 200, {
-                        "agents":[dict(r) for r in store.db.execute("SELECT * FROM datatiles_provenance_agents")],
-                        "activities":[dict(r) for r in store.db.execute("SELECT * FROM datatiles_provenance_activities")],
-                        "entities":[dict(r) for r in store.db.execute("SELECT * FROM datatiles_provenance_entities")],
-                        "relations":[dict(r) for r in store.db.execute("SELECT * FROM datatiles_provenance_relations")]})
                 if parts == ["collections", collection, "point"]:
                     query=parse_qs(parsed.query)
                     try:
@@ -198,7 +191,7 @@ def handler_for(path: Path):
                       {"name":"tileRow", "in":"path", "required":True, "schema":{"type":"integer","minimum":0}}]
             params += [{"name":d["name"], "in":"query", "required":bool(d["required"]),
                        "schema":{"type":"string"}, "description":d["description"] or d["extent_kind"]} for d in dims]
-            return {"openapi":"3.0.3", "info":{"title":"DataTiles OGC API","version":"0.15.0"},
+            return {"openapi":"3.0.3", "info":{"title":"DataTiles OGC API","version":"0.20.0"},
                     "paths":{f"/collections/{collection}/tiles/WebMercatorQuad/{{tileMatrix}}/{{tileCol}}/{{tileRow}}":{
                         "get":{"parameters":params, "responses":{"200":{"description":"tile"},"404":{"description":"not found"}}}},
                         f"/collections/{collection}/profile":{"get":{"parameters":[
@@ -213,7 +206,14 @@ def handler_for(path: Path):
                         f"/collections/{collection}/contours":{"get":{"parameters":[{"name":"bbox","in":"query","required":True,"schema":{"type":"string"}},{"name":"interval","in":"query","schema":{"type":"number","default":5}},{"name":"adaptive","in":"query","schema":{"type":"boolean","default":False}}],"responses":{"200":{"description":"live derived GeoJSON contours"}}}},
                         f"/collections/{collection}/nautical-items":{"get":{"parameters":[{"name":"bbox","in":"query","required":True,"schema":{"type":"string"}}],"responses":{"200":{"description":"stored OpenStreetMap seamark vector features"}}}},
                         f"/collections/{collection}/query":{"get":{"parameters":[{"name":"bbox","in":"query","required":True,"schema":{"type":"string"}},{"name":"min_depth","in":"query","schema":{"type":"number"}},{"name":"max_depth","in":"query","schema":{"type":"number"}},{"name":"classes","in":"query","schema":{"type":"string"}},{"name":"sheltered_by","in":"query","schema":{"type":"string","enum":["nw"]}}],"responses":{"200":{"description":"predicate-selected GeoJSON areas"}}}},
-                        f"/collections/{collection}/fair":{"get":{"responses":{"200":{"description":"FAIR-by-design assessment report"}}}}}}
+                        f"/collections/{collection}/variables":{"get":{"responses":{"200":{"description":"semantic variable registry"}}}},
+                        f"/collections/{collection}/rights":{"get":{"responses":{"200":{"description":"structured rights records"}}}},
+                        f"/collections/{collection}/provenance":{"get":{"responses":{"200":{"description":"W3C PROV-shaped lineage graph"}}}},
+                        f"/collections/{collection}/datacite":{"get":{"responses":{"200":{"description":"DataCite-shaped publication metadata"}}}},
+                        f"/collections/{collection}/integrity":{"get":{"responses":{"200":{"description":"integrity manifest and signature status"}}}},
+                        f"/collections/{collection}/commercial":{"get":{"responses":{"200":{"description":"commercial distribution metadata"}}}},
+                        f"/collections/{collection}/release":{"get":{"responses":{"200":{"description":"immutable product release identity"}}}},
+                        f"/collections/{collection}/fair":{"get":{"responses":{"200":{"description":"principle-level FAIR publication assessment"}}}}}}
 
         def log_message(self, fmt: str, *args: object) -> None: pass
     return Handler

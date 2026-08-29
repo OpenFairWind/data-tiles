@@ -4,7 +4,7 @@ DataTiles supports an optional protected-distribution profile for institutions a
 
 ## Separation of concerns
 
-A DataTiles object remains an ordinary revision-7 SQLite scientific object. Publishers finalize its semantics, provenance, rights, citations, QA, and optional digital signatures first. Commercial distribution then wraps that immutable file in `DataTiles-Protected-Distribution-1` (`.dtpkg`). Authorized recipients decrypt the package back to the exact original bytes.
+A DataTiles object remains an ordinary current-revision SQLite scientific object (revision 8 in this release). Publishers finalize its semantics, provenance, rights, citations, QA, and optional digital signatures first. Commercial distribution then wraps that immutable file in `DataTiles-Protected-Distribution-1` (`.dtpkg`). Authorized recipients decrypt the package back to the exact original bytes.
 
 The legal licence and technical entitlement are distinct. `datatiles_rights` and human-readable terms state the legal basis. W3C ODRL 2.2 can encode machine-readable permissions, prohibitions, constraints, and duties. The DRM licence token only conveys an issuer-signed access grant and a recipient-wrapped content-encryption key; it does not create rights the publisher does not already possess.
 

@@ -5,7 +5,7 @@ These screenshots document an executed DataTiles demonstration; they are not sto
 ## Capture environment and inputs — 2026-08-28
 
 - viewport: 1280 × 720 pixels;
-- DataTiles version: 0.19.0;
+- DataTiles version: 0.20.0;
 - publication extent: `12.85–15.71851° E, 39.99852–41.21408° N`;
 - generated container SHA-256: `b0f9732ce43a1b16729978b9ec8feabf82d513e1d8d71405893b1c828b4f55e2`;
 - source-lock SHA-256: `20effbe5c4612492c0a1ca3a1575216f3d2bce5e5178ef56d1c49c84616308b7`;

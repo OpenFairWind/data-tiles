@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.20.0 — 2026-08-29
+
+- consolidates revision-8 semantic, FAIR, integrity, commercial-policy, and immutable-release tables into the normative specification and synchronizes the HTTP/OpenAPI contract;
+- corrects Store inspection of current revision-8 dimension, content, signature, and commercial-product columns and adds regression coverage using a real DataTiles container;
+- replaces the Store's remote basemap preview with exact selected-slice retrieval and bounded client-side DNT1 portrayal while retaining explicit image-portrayal handling;
+- adds Store architecture, access-gate, and preview-pipeline SVG figures plus verified catalog, scientific-preview, and agreement screenshots with provenance;
+- aligns Store, demo, playground, utilities, tutorials, API documentation, release metadata, and visual registers with the revision-8 implementation.
+
 ## 0.19.0 — 2026-08-29
 
 - advances the DataTiles schema to revision 8 with CF-first semantic variables, FAIR publication metadata, provenance, rights, optional integrity signatures, optional protected distribution, and immutable release identity;

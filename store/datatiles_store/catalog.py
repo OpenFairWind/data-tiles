@@ -52,10 +52,10 @@ def extract_metadata(path: Path) -> dict[str, Any]:
             rights = _safe_rows(con, "SELECT scope,license_expression,license_uri,rights_holder,attribution_text,access_rights,applies_to FROM datatiles_rights ORDER BY scope,rights_id") if "datatiles_rights" in objects else []
             entities = _safe_rows(con, "SELECT entity_id,entity_type,label,uri,checksum_algorithm,checksum FROM datatiles_provenance_entities ORDER BY entity_id", limit=500) if "datatiles_provenance_entities" in objects else []
             activities = _safe_rows(con, "SELECT activity_id,activity_type,label,started_at,ended_at,software_name,software_version FROM datatiles_provenance_activities ORDER BY activity_id", limit=500) if "datatiles_provenance_activities" in objects else []
-            contents = _safe_rows(con, "SELECT * FROM datatiles_contents ORDER BY content_id", limit=500) if "datatiles_contents" in objects else []
-            dims = _safe_rows(con, "SELECT name,kind,unit,description FROM datatiles_dimensions ORDER BY dimension_id", limit=500) if "datatiles_dimensions" in objects else []
-            integrity = _safe_rows(con, "SELECT signature_id,algorithm,key_id,signer,signed_at,manifest_root_sha256 FROM datatiles_signatures ORDER BY signed_at", limit=200) if "datatiles_signatures" in objects else []
-            commercial = _safe_rows(con, "SELECT product_id,title,edition,issuer,terms_uri,license_service_uri FROM datatiles_commercial_products", limit=100) if "datatiles_commercial_products" in objects else []
+            contents = _safe_rows(con, "SELECT coordinate_set_id,data_type,media_type,encoding,schema_json FROM datatiles_contents ORDER BY coordinate_set_id", limit=500) if "datatiles_contents" in objects else []
+            dims = _safe_rows(con, "SELECT name,value_type,axis,unit,description,ordering,required,extent_kind FROM datatiles_dimensions ORDER BY dimension_id", limit=500) if "datatiles_dimensions" in objects else []
+            integrity = _safe_rows(con, "SELECT s.signature_id,s.manifest_id,s.signature_scheme,s.signature_encoding,s.key_id,s.signer_agent_id,s.signed_at,m.root_sha256 FROM datatiles_signatures AS s JOIN datatiles_integrity_manifests AS m USING(manifest_id) ORDER BY s.signed_at", limit=200) if "datatiles_signatures" in objects else []
+            commercial = _safe_rows(con, "SELECT product_id,edition,issuer,issuer_uri,terms_uri,license_service_uri,protection_profile,created_at,metadata_json FROM datatiles_commercial_products ORDER BY product_id", limit=100) if "datatiles_commercial_products" in objects else []
             release_rows = _safe_rows(con, "SELECT product_id,version,sequence,released_at,previous_version,previous_identifier,release_notes_uri,update_uri FROM datatiles_release WHERE singleton=1", limit=1) if "datatiles_release" in objects else []
     finally:
         engine.dispose()
@@ -139,6 +139,31 @@ def tile_bytes(path: Path, z: int, x: int, y_xyz: int):
     if data[:4] == b"RIFF" and data[8:12] == b"WEBP": return data, "image/webp"
     if data[:2] == b"\x1f\x8b": return data, "application/vnd.mapbox-vector-tile"
     return data, "application/octet-stream"
+
+
+def preview_tile(path: Path):
+    """Return one exact tile from the selected slice without portrayal."""
+    engine = _ro_engine(path)
+    try:
+        with engine.connect() as con:
+            con.exec_driver_sql("PRAGMA query_only=ON")
+            required = {"datatiles_selected_slice", "datatiles_contents", "datatiles_tiles"}
+            if not required.issubset(_objects(con)):
+                return None
+            row = con.exec_driver_sql(
+                "SELECT t.zoom_level,t.tile_column,t.tile_row,t.tile_data,c.data_type,c.media_type,c.encoding,c.schema_json "
+                "FROM datatiles_selected_slice AS s "
+                "JOIN datatiles_contents AS c ON c.coordinate_set_id=s.coordinate_set_id "
+                "JOIN datatiles_tiles AS t ON t.coordinate_set_id=s.coordinate_set_id "
+                "WHERE s.singleton=1 ORDER BY t.zoom_level,t.tile_column,t.tile_row LIMIT 1"
+            ).first()
+            if row is None:
+                return None
+            result = dict(row._mapping)
+            result["tile_data"] = bytes(result["tile_data"])
+            return result
+    finally:
+        engine.dispose()
 
 
 def _int_or_none(value):

@@ -86,3 +86,30 @@ def test_remote_zarr_signed_url_requires_credential_free_provenance_uri():
     ) as resolved:
         assert resolved.identifier == "https://example.org/data.zarr"
         assert "secret" not in resolved.identifier
+
+
+def test_conversion_selects_first_slice_and_enforces_revision_8_semantics(tmp_path):
+    import pytest
+    np=pytest.importorskip("numpy"); xr=pytest.importorskip("xarray")
+    from datatiles import DataTiles
+    common=load_common()
+    dataset=xr.Dataset(
+        {"depth":(("lat","lon"),np.array([[1.0,2.0],[3.0,4.0]],dtype="float32"),
+                  {"standard_name":"sea_floor_depth_below_sea_surface","units":"m"})},
+        coords={"lat":[40.0,41.0],"lon":[13.0,14.0]},
+    )
+    target=tmp_path/"converted.datatiles"
+    source_file=tmp_path/"source.bin"; source_file.write_bytes(b"fixture")
+    with common.resolve_source(str(source_file)) as source:
+        stats=common.convert_dataset(
+            dataset,target,source=source,source_kind="NetCDF",variables=["depth"],zoom=0,tile_size=8,
+            bbox=None,max_tiles=1,source_license="CC-BY-4.0",
+            source_license_uri="https://creativecommons.org/licenses/by/4.0/",source_attribution="Fixture source",
+            dataset_license="CC-BY-4.0",dataset_license_uri="https://creativecommons.org/licenses/by/4.0/",
+            dataset_attribution="Fixture output",
+        )
+    assert stats=={"variables":1,"slices":1,"tiles":1}
+    with DataTiles(target,read_only=True) as store:
+        assert store.db.execute("SELECT count(*) FROM tiles").fetchone()[0]==1
+        assert store.metadata()["bounds"]=="13,40,14,41"
+        assert store.validate(require_variable_semantics=True)==[]

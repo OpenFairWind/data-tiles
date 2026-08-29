@@ -188,6 +188,63 @@ INSERT INTO datatiles_selected_slice VALUES(1,NULL);
 
 There MUST be exactly one singleton row.
 
+### 5.7 Semantic variables
+
+Revision 8 includes the revision-4 semantic registry. Writers that use a text point dimension named `variable` SHOULD register every variable token; when `metadata['datatiles:variable_semantics']` is `required`, they MUST reject an unregistered token.
+
+```sql
+CREATE TABLE datatiles_variables(
+ variable_id INTEGER PRIMARY KEY,
+ name TEXT NOT NULL UNIQUE,
+ standard_name TEXT NOT NULL,
+ standard_name_vocabulary TEXT NOT NULL DEFAULT 'CF',
+ standard_name_vocabulary_version TEXT,
+ canonical_unit TEXT,long_name TEXT,description TEXT);
+CREATE TABLE datatiles_variable_identifiers(
+ variable_id INTEGER NOT NULL REFERENCES datatiles_variables(variable_id) ON DELETE CASCADE,
+ scheme TEXT NOT NULL,identifier TEXT NOT NULL,scheme_version TEXT,uri TEXT,
+ PRIMARY KEY(variable_id,scheme,identifier),UNIQUE(scheme,identifier)) WITHOUT ROWID;
+```
+
+`name`, `standard_name`, `scheme`, and `identifier` MUST be non-empty trimmed strings. `standard_name_vocabulary` identifies the governing vocabulary; `CF` is the default, not an inference that every token has been checked against a particular CF table version. `canonical_unit` records the vocabulary unit, while DNT1 `unit` records the encoded tile quantity.
+
+### 5.8 FAIR identifiers, rights, agents, and publication evidence
+
+Revision 8 includes the revision-5 tables `datatiles_identifiers`, `datatiles_related_identifiers`, `datatiles_rights`, `datatiles_fair_agents`, and `datatiles_publication_evidence` exactly as defined in the distributed `schema.sql`. At most one identifier has `is_primary=1`. Rights `scope` is one of `dataset,metadata,source,portrayal,software,other`; `access_rights` is one of `open,embargoed,restricted,closed`. Source rights SHOULD reference the corresponding provenance entity. Publication evidence records external assertions such as catalogue registration and metadata-retention policy; a writer MUST NOT fabricate them from embedded metadata.
+
+### 5.9 Integrity manifests and signatures
+
+```sql
+CREATE TABLE datatiles_integrity_manifests(
+ manifest_id TEXT PRIMARY KEY,profile TEXT NOT NULL,canonicalization TEXT NOT NULL,
+ hash_algorithm TEXT NOT NULL CHECK(hash_algorithm='sha256'),
+ root_sha256 TEXT NOT NULL UNIQUE,manifest_json TEXT NOT NULL,created_at TEXT NOT NULL) WITHOUT ROWID;
+CREATE TABLE datatiles_signatures(
+ signature_id TEXT PRIMARY KEY,
+ manifest_id TEXT NOT NULL REFERENCES datatiles_integrity_manifests(manifest_id) ON DELETE CASCADE,
+ signature_scheme TEXT NOT NULL,signature_encoding TEXT NOT NULL,signature BLOB NOT NULL,
+ key_id TEXT NOT NULL,public_key BLOB,signer_agent_id TEXT,signed_at TEXT NOT NULL,
+ verification_material_json TEXT,
+ UNIQUE(manifest_id,signature_scheme,key_id,signature)) WITHOUT ROWID;
+```
+
+The complete constraints and canonical signed domain are normative in §19 and `digital-signatures.md`. Signing rows are excluded from the signed domain so independent signatures can attest the same logical object.
+
+### 5.10 Commercial policy metadata
+
+`datatiles_commercial_products` identifies an issuer, edition, terms URI, optional licence-service URI, protection profile, creation time, and JSON metadata. `datatiles_drm_policies` binds one or more machine-readable policies to that product. These records describe distribution policy; they MUST NOT be interpreted as source relicensing or as cryptographic keys. The optional protected package is external to the SQLite object.
+
+### 5.11 Immutable release identity
+
+```sql
+CREATE TABLE datatiles_release(
+ singleton INTEGER PRIMARY KEY CHECK(singleton=1),product_id TEXT NOT NULL,
+ version TEXT NOT NULL,sequence INTEGER NOT NULL CHECK(sequence>=1),released_at TEXT NOT NULL,
+ previous_version TEXT,previous_identifier TEXT,release_notes_uri TEXT,update_uri TEXT);
+```
+
+There is zero or one release row. Consumers MUST order releases of one `product_id` by integer `sequence`, not lexical `version`. Once published, a versioned file is immutable; a correction is a new object with a larger sequence and new content identity.
+
 ## 6. Typed values and canonicalization
 
 | Type | Accepted value | Canonical text | Typed storage |
@@ -377,26 +434,28 @@ An implementation MUST NOT guess payload type from BLOB signatures when a conten
 | DNT1 unknown header key or trailing zlib bytes | reject |
 | populated set without content profile | invalid |
 
-## 18. Evolution
+## 18. Evolution and migrations
 
 Readers MUST reject unsupported schema revisions rather than infer them. A migration MUST be transactional, deterministic, documented, and preserve scientific identity. Existing columns MUST NOT be reinterpreted. Future revisions may define non-Gregorian calendars, content deduplication, tile checksums, dimension overviews, additional vector encodings, and further OGC API profiles.
 
+The supported deterministic path is 2→3→4→5→6→7→8. Revision 3 adds content profiles; revision 4 semantic variables; revision 5 structured FAIR/rights evidence; revision 6 logical integrity manifests and signatures; revision 7 commercial-policy metadata; revision 8 release identity. Migration MUST NOT invent semantic mappings, rights, external evidence, signatures, commercial authority, or release history.
 
-## Zarr source-ingestion profile
+
+## 19. Zarr source-ingestion profile
 
 A conforming `zarr2datatiles` source utility MUST follow `zarr-source-profile.md`. Zarr is a multi-object N-dimensional store rather than a single-file checksum domain. Local directory stores MUST use the canonical `zarr-tree-sha256-v1` digest defined there; remote stores MUST be bound to an immutable store/snapshot by an authoritative checksum supplied by the publication workflow. The importer MUST preserve the source identifier, checksum algorithm/value, CF semantics when present, dimensions, units, declared resampling, source/output rights, and tile-level lineage. It MUST NOT persist backend credentials or infer data licensing from transport accessibility. Zarr format 2 and 3 MAY be accepted; any required format, group, consolidated-metadata policy, and non-secret storage-option keys MUST be recorded as conversion parameters. Scientific arrays MUST remain numeric DNT1 evidence rather than being silently converted to portrayal imagery.
 
 
-## Cryptographic integrity profile
+## 20. Cryptographic integrity profile
 
 Schema revision 6 adds optional canonical integrity manifests and digital signatures. Implementations claiming the native profile MUST follow `digital-signatures.md` and `specification-revision-6-addendum.md`. The signed subject is the canonical logical DataTiles object, not raw SQLite file bytes. The native signature algorithm is Ed25519 over `DataTiles-Integrity-Manifest-1`; SHA-256 remains the digest primitive. Signature metadata MUST distinguish cryptographic validity from trust in signer identity. Signature presence is optional and MUST NOT be presented as proof of FAIRness, scientific correctness, legal compliance, hydrographic authority, or navigation safety. Servers MUST NOT expose private-key signing endpoints as part of the standard DataTiles read service.
 
 
-## Optional commercial protected distribution
+## 21. Optional commercial protected distribution
 
 Schema revision 7 adds commercial-product and machine-readable policy metadata. Implementations supporting commercial protected distribution MUST follow `drm-and-commercial-licensing.md` and `specification-revision-7-addendum.md`. `DataTiles-Protected-Distribution-1` is an optional outer encrypted distribution package; after authorized decryption the payload MUST be the exact ordinary DataTiles SQLite object. W3C ODRL 2.2 is the default machine-readable rights-policy model. Technical DRM grants MUST NOT be interpreted as source relicensing, scientific certification, hydrographic authority, FAIR certification, or navigation safety. Secrets MUST remain outside the DataTiles metadata/provenance graph and standard read-only service.
 
 
-## Release versioning
+## 22. Release versioning
 
 Schema revision 8 defines `DataTiles-Release-Versioning-1`. A published DataTiles object MAY declare one `datatiles_release` record containing stable `product_id`, human `version`, monotonically increasing integer `sequence`, RFC 3339 `released_at`, and optional predecessor/release-notes/update links. Consumers MUST use `sequence`, not lexical `version`, to order releases. Published versions are immutable; a correction is a new DataTiles object with a larger sequence, new checksum, and new signature where signing is used. See `specification-revision-8-addendum.md`.

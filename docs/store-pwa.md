@@ -19,9 +19,11 @@ The catalog records a SHA-256 of each stored file for operational identity. This
 
 ## Explorer
 
-The map explorer follows familiar chart-browser interaction patterns: pan/zoom, coverage fitting, layer enable/disable, location inspection, product metadata, variables, provenance, rights and downloads. C-MAP Chart Explorer is a qualitative interaction reference only; its datasets, cartographic symbols, assets and pixels are not copied.
+The explorer presents product metadata, variables, provenance, rights, release identity, and authorized downloads beside a selected-slice preview. C-MAP Chart Explorer is a qualitative reference for information hierarchy only; its datasets, symbols, assets, interactions, and pixels are not copied.
 
-The preview endpoint consumes the selected four-column `tiles` compatibility view and translates web XYZ `y` to stored TMS rows. Only recognized PNG, JPEG and WebP portrayal payloads are displayed. Numeric DNT1 arrays are never heuristically treated as images. A non-image compatibility slice therefore remains discoverable/downloadable but requires an explicit portrayal profile to appear as a map overlay.
+The Store retrieves one exact tile from `datatiles_selected_slice`. For DNT1, the browser enforces the header and element limits, decompresses zlib when supported, applies declared byte order, excludes raw-domain nodata, computes physical values as `raw × scale + offset`, and creates an ephemeral deterministic colour ramp from the finite range of the first array plane. The Store does not save those pixels or represent them as a scientific variable. For a selected PNG/JPEG/WebP portrayal profile, the stored portrayal is displayed without reinterpreting it as measurements. Unsupported encodings remain discoverable and downloadable but are not silently converted.
+
+![Client-side preview boundary](../store/docs/figures/client-side-preview.svg)
 
 ## Authentication and authorization
 
@@ -81,6 +83,7 @@ POST   /api/v1/catalog/scan
 GET    /api/v1/catalog/{id}/agreement
 POST   /api/v1/catalog/{id}/agreement/accept
 GET    /api/v1/catalog/{id}/tiles/{z}/{x}/{y}
+GET    /api/v1/catalog/{id}/preview
 GET    /api/v1/catalog/{id}/download
 
 GET/POST/PATCH/DELETE /api/v1/users...
@@ -89,7 +92,7 @@ GET    /api/v1/audit
 GET    /api/v1/openapi.json
 ```
 
-API write endpoints accept Bearer authentication and are CSRF-exempt because they do not rely on ambient browser cookies for third-party authorization. Browser form writes remain CSRF protected.
+API write endpoints require Bearer authentication and are CSRF-exempt because they reject ambient browser-cookie authorization for writes. Browser form writes remain CSRF protected. API reads MAY use an authenticated browser session for the built-in UI and diagnostics, but third-party clients SHOULD consistently use Bearer tokens.
 
 ## Managers and Store-level CRUD
 

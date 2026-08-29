@@ -10,7 +10,7 @@ The [figure provenance register](figures/README.md) identifies the source docume
 | [MBTiles fallback](mbtiles-fallback.md) | selected-slice compatibility and physical-table export for conservative OpenLayers adapters |
 | [Onboard intelligence white paper](white-paper.md) | manifesto, AI evidence contract, practical marine/automotive architecture, and safety boundaries |
 | [Design evaluation](design-evaluation.md) | concise definition, audit findings, corrections, and compatibility conclusion |
-| [Zero-to-hero tutorial](tutorial/README.md) | seven theory-led lessons with executable raster/vector laboratories |
+| [Zero-to-hero tutorial](tutorial/README.md) | ten theory-led lessons with executable raster/vector, FAIR, integrity, DRM, and Store laboratories |
 | [FAIR by design](fair-by-design.md) | operational mapping from each FAIR principle to DataTiles evidence and publication gates |
 | [FAIR scientific publication profile](fair-publication-profile.md) | normative-supporting FAIR gates, DataCite 4.7 alignment, and release evidence |
 | [Scientific provenance](provenance.md) | W3C PROV-aligned entities, activities, agents, lineage, and audit rules |

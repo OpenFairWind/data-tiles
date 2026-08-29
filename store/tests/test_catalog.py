@@ -5,7 +5,8 @@ from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from datatiles_store.catalog import extract_metadata, scan_catalog, tile_bytes
+from datatiles import DataTiles, encode_numeric_tile
+from datatiles_store.catalog import extract_metadata, preview_tile, scan_catalog, tile_bytes
 from datatiles_store.models import Base, CatalogItem
 
 
@@ -54,3 +55,27 @@ def test_tile_xyz_to_tms_and_png_detection(tmp_path):
     con=sqlite3.connect(p); con.execute('INSERT INTO tiles VALUES(2,1,2,?)',(png,)); con.commit(); con.close()
     data,mime=tile_bytes(p,2,1,1) # XYZ y=1 -> TMS y=2
     assert data==png and mime=='image/png'
+
+
+def test_revision_8_metadata_and_numeric_preview_use_current_schema(tmp_path):
+    path = tmp_path / "revision-8.datatiles"
+    with DataTiles(path, create=True, name="Revision 8 depth", tile_format="application/vnd.datatiles.numeric") as store:
+        store.add_dimension("variable", "text", axis="C")
+        store.add_variable("depth", "sea_floor_depth_below_sea_surface", canonical_unit="m")
+        store.add_rights("dataset", "CC-BY-4.0", license_uri="https://creativecommons.org/licenses/by/4.0/")
+        store.add_commercial_product("urn:example:depth", issuer="Example Institute", terms_uri="https://example.invalid/terms")
+        store.set_release("urn:example:depth", "2026.1", 1, released_at="2026-08-29T00:00:00Z")
+        payload = encode_numeric_tile([1.0, 2.0, 3.0, 4.0], (2, 2), dtype="float32", compression="none", unit="m")
+        store.put(0, 0, 0, payload, {"variable": "depth"}, xyz=True)
+        store.select({"variable": "depth"})
+
+    detail = extract_metadata(path)
+    assert detail["revision"] == 8
+    assert detail["dimensions"][0]["value_type"] == "text"
+    assert detail["contents"][0]["encoding"] == "DNT1"
+    assert detail["commercial"][0]["issuer"] == "Example Institute"
+    assert detail["release"]["sequence"] == 1
+    preview = preview_tile(path)
+    assert preview["encoding"] == "DNT1"
+    assert preview["media_type"] == "application/vnd.datatiles.numeric"
+    assert preview["tile_data"] == payload

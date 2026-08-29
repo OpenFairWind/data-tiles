@@ -16,21 +16,30 @@ NetCDF example:
 
 ```bash
 python utils/netcdf2datatiles.py ./ocean.nc ocean.datatiles \
-  --variable depth --zoom 7 --bbox 12.8 39.9 15.8 41.3
+  --variable depth --zoom 7 --bbox 12.8 39.9 15.8 41.3 \
+  --source-license CC-BY-4.0 --source-license-uri https://creativecommons.org/licenses/by/4.0/ \
+  --source-attribution "Required source credit" \
+  --dataset-license CC-BY-4.0 --dataset-license-uri https://creativecommons.org/licenses/by/4.0/
 ```
 
 URL example:
 
 ```bash
 python utils/netcdf2datatiles.py \
-  https://example.org/data/ocean.nc ocean.datatiles --variable depth
+  https://example.org/data/ocean.nc ocean.datatiles --variable depth \
+  --source-license LicenseRef-Source-Terms --source-license-uri https://example.org/terms \
+  --source-attribution "Required source credit" \
+  --dataset-license LicenseRef-Output-Terms --dataset-license-uri https://example.org/output-terms
 ```
 
 GRIB2 example:
 
 ```bash
 python utils/grib2datatiles.py ./forecast.grib2 weather.datatiles \
-  --variable t2m --zoom 6
+  --variable t2m --zoom 6 \
+  --source-license LicenseRef-Provider-Terms --source-license-uri https://example.org/model-terms \
+  --source-attribution "Required model-provider credit" \
+  --dataset-license LicenseRef-Derived-Terms --dataset-license-uri https://example.org/derived-terms
 ```
 
 When one GRIB file contains incompatible hypercubes, use repeatable cfgrib filters:
@@ -48,6 +57,8 @@ Important constraints:
 - Inputs without a CF name are never falsely labelled as CF.
 - Output uses `application/vnd.datatiles.numeric` + DNT1; portrayal is a downstream reproducible derivation.
 - `--max-tiles` is an intentional resource guard.
+- The guard counts every variable and every non-spatial slice, not merely one spatial pyramid per variable.
+- The first variable/slice in deterministic input order becomes the selected MBTiles compatibility slice; numeric bytes remain DNT1 and are never relabelled as portrayal imagery.
 
 ## Zarr
 

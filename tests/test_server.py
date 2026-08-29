@@ -30,7 +30,10 @@ def test_discovery_openapi_and_fair_resources(service):
     base,collection=service
     assert get_json(base+"/")[2]["links"]
     assert get_json(base+"/conformance")[2]["conformsTo"]
-    assert f"/collections/{collection}/surface" in get_json(base+"/api")[2]["paths"]
+    paths=get_json(base+"/api")[2]["paths"]
+    assert f"/collections/{collection}/surface" in paths
+    for resource in ("variables","rights","provenance","datacite","integrity","commercial","release","fair"):
+        assert f"/collections/{collection}/{resource}" in paths
     assert get_json(base+f"/collections/{collection}")[2]["id"]==collection
     assert "checks" in get_json(base+f"/collections/{collection}/fair")[2]
 
