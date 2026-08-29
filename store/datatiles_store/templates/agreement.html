@@ -1,0 +1,24 @@
+{% extends 'base.html' %}{% block title %}Agreement · {{item.title}} · DataTiles Store{% endblock %}
+{% block content %}
+<section class="agreement-page">
+  <a class="back" href="{{url_for('detail',item_id=item.id)}}">← {{item.title}}</a>
+  <h1>Data licence and safety agreement</h1>
+  <p class="agreement-lead">Data access is bound to this exact release: <code>{{agreement.file_sha256}}</code>. A replacement or changed agreement requires new acceptance.</p>
+  {% if accepted %}<div class="accepted">Accepted {{accepted.accepted_at}} via {{accepted.source}}.</div>{% endif %}
+  <section class="agreement-box">
+    <h2>Data rights and licences</h2>
+    <p>{{agreement.license_notice}}</p>
+    {% for r in agreement.rights %}
+      <article class="right-record"><strong>{{r.scope or 'dataset'}}</strong><span>{{r.license_expression or 'No SPDX expression supplied'}}</span>{% if r.license_uri %}<a href="{{r.license_uri}}" rel="external noopener">{{r.license_uri}}</a>{% endif %}{% if r.attribution_text %}<p>{{r.attribution_text}}</p>{% endif %}</article>
+    {% else %}<div class="warning">No structured rights record is embedded. Do not infer permission from file availability; contact the distributor before reuse.</div>{% endfor %}
+  </section>
+  <section class="agreement-box safety"><h2>Not suitable for navigation · AS IS · no responsibility</h2><p>{{agreement.safety_text}}</p><small>Agreement version: {{agreement.safety_version}}</small></section>
+  <form method="post" class="accept-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label><input type="checkbox" name="accept_license" value="yes" required> I have read and accept the data licence/rights terms for this exact DataTiles release.</label>
+    <label><input type="checkbox" name="accept_safety" value="yes" required> I understand and accept that the data/software/service is not suitable for navigation, is provided AS IS, and carries the stated limitation of responsibility.</label>
+    <button class="primary" type="submit">Accept and continue</button>
+  </form>
+  <p class="api-note">Third-party applications can retrieve and accept this agreement via <code>/api/v1/catalog/{{item.id}}/agreement</code> and <code>/api/v1/catalog/{{item.id}}/agreement/accept</code>.</p>
+</section>
+{% endblock %}

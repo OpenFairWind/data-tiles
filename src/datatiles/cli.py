@@ -31,6 +31,17 @@ def parser() -> argparse.ArgumentParser:
     dim.add_argument("--axis", choices=["T","Z","E","C","O"]); dim.add_argument("--unit"); dim.add_argument("--description")
     dim.add_argument("--optional", action="store_true")
     dim.add_argument("--extent", choices=["point","interval","point_or_interval"], default="point")
+    var = sub.add_parser("add-variable", help="register a semantic variable")
+    var.add_argument("file"); var.add_argument("name"); var.add_argument("--standard-name", required=True)
+    var.add_argument("--vocabulary", default="CF"); var.add_argument("--vocabulary-version")
+    var.add_argument("--canonical-unit"); var.add_argument("--long-name"); var.add_argument("--description")
+    vid = sub.add_parser("add-variable-id", help="add GRIB/SeaDataNet/NVS/etc crosswalk identifier")
+    vid.add_argument("file"); vid.add_argument("variable"); vid.add_argument("scheme"); vid.add_argument("identifier")
+    vid.add_argument("--scheme-version"); vid.add_argument("--uri")
+    vars_cmd = sub.add_parser("variables", help="list semantic variables as JSON"); vars_cmd.add_argument("file")
+    find_var = sub.add_parser("find-variable", help="find coordinate sets by semantic standard name")
+    find_var.add_argument("file"); find_var.add_argument("standard_name"); find_var.add_argument("--vocabulary", default="CF")
+    policy = sub.add_parser("set-variable-policy"); policy.add_argument("file"); policy.add_argument("policy", choices=["required","recommended"])
     crs = sub.add_parser("add-crs")
     crs.add_argument("file"); crs.add_argument("role", choices=["horizontal","vertical","temporal","compound","engineering"])
     crs.add_argument("--authority"); crs.add_argument("--code"); crs.add_argument("--uri"); crs.add_argument("--wkt2"); crs.add_argument("--projjson")
@@ -52,7 +63,7 @@ def parser() -> argparse.ArgumentParser:
     contents.add_argument("file")
     metadata = sub.add_parser("set-metadata", help="set one non-managed metadata value")
     metadata.add_argument("file"); metadata.add_argument("name"); metadata.add_argument("value")
-    validate = sub.add_parser("validate"); validate.add_argument("file")
+    validate = sub.add_parser("validate"); validate.add_argument("file"); validate.add_argument("--cf-table", type=Path); validate.add_argument("--require-variable-semantics", action="store_true")
     return p
 
 
@@ -65,6 +76,21 @@ def main(argv: list[str] | None = None) -> int:
             with DataTiles(args.file) as store:
                 store.add_dimension(args.name, args.type, axis=args.axis, unit=args.unit, description=args.description,
                                     required=not args.optional, extent_kind=args.extent)
+        elif args.command == "add-variable":
+            with DataTiles(args.file) as store:
+                store.add_variable(args.name,args.standard_name,vocabulary=args.vocabulary,vocabulary_version=args.vocabulary_version,
+                                   canonical_unit=args.canonical_unit,long_name=args.long_name,description=args.description)
+        elif args.command == "add-variable-id":
+            with DataTiles(args.file) as store:
+                store.add_variable_identifier(args.variable,args.scheme,args.identifier,scheme_version=args.scheme_version,uri=args.uri)
+        elif args.command == "variables":
+            with DataTiles(args.file) as store: print(json.dumps({"variables":store.variables()},indent=2,ensure_ascii=False))
+        elif args.command == "find-variable":
+            with DataTiles(args.file) as store:
+                print(json.dumps({"standard_name":args.standard_name,"vocabulary":args.vocabulary,
+                                  "coordinate_set_ids":store.find_coordinate_sets_by_standard_name(args.standard_name,vocabulary=args.vocabulary)},indent=2))
+        elif args.command == "set-variable-policy":
+            with DataTiles(args.file) as store: store.set_variable_semantics(args.policy)
         elif args.command == "add-crs":
             with DataTiles(args.file) as store:
                 store.add_crs(args.role, authority=args.authority, code=args.code, uri=args.uri,
@@ -90,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "set-metadata":
             with DataTiles(args.file) as store: store.set_metadata(args.name,args.value)
         elif args.command == "validate":
-            with DataTiles(args.file) as store: errors = store.validate()
+            with DataTiles(args.file) as store: errors = store.validate(cf_table=args.cf_table, require_variable_semantics=args.require_variable_semantics)
             if errors:
                 for error in errors: print(error)
                 return 1

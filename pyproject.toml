@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "datatiles"
-version = "0.10.0"
+version = "0.19.0"
 description = "MBTiles-compatible multidimensional raster-matrix and vector-feature storage"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -22,6 +22,17 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
+integrity = ["cryptography>=45"]
+drm = ["cryptography>=45"]
+utils = [
+  "numpy>=2.0",
+  "xarray>=2025.1",
+  "netCDF4>=1.7",
+  "cfgrib>=0.9.15",
+  "eccodes>=2.40",
+  "zarr>=3.0",
+  "fsspec>=2025.1",
+]
 demo = [
   "numpy==2.2.6; python_version < '3.11'",
   "numpy==2.3.5; python_version >= '3.11'",
@@ -34,6 +45,8 @@ test = [
 ]
 
 [project.scripts]
+datatiles-integrity = "datatiles.integrity_cli:main"
+datatiles-drm = "datatiles.drm_cli:main"
 datatiles = "datatiles.cli:main"
 datatiles-serve = "datatiles.server:main"
 datatiles-demo = "datatiles.demo:main"

@@ -47,7 +47,7 @@ def _coordinates(query: dict[str, list[str]], dimensions: set[str]) -> dict[str,
 
 def handler_for(path: Path):
     class Handler(BaseHTTPRequestHandler):
-        server_version = "DataTiles/0.10"
+        server_version = "DataTiles/0.15"
 
         def do_GET(self) -> None:
             parsed = urlparse(self.path); parts = [unquote(p) for p in parsed.path.split("/") if p]
@@ -80,6 +80,7 @@ def handler_for(path: Path):
                            "crs": [c["uri"] for c in crs if c["uri"]],
                            "datatiles:dimensions": dims,
                            "datatiles:contents": store.content_profiles(),
+                           "datatiles:variables": store.variables(),
                            "links": [{"rel":"tilesets-map","href":f"/collections/{collection_url}/tiles","type":"application/json"},
                                      {"rel":"profile","href":f"/collections/{collection_url}/profile","type":"application/json"},
                                      {"rel":"point","href":f"/collections/{collection_url}/point","type":"application/json"},
@@ -93,6 +94,16 @@ def handler_for(path: Path):
                 if parts == ["collections", collection]: return _json(self, 200, summary)
                 if parts == ["collections", collection, "dimensions"]: return _json(self, 200, {"dimensions":dims})
                 if parts == ["collections", collection, "contents"]: return _json(self,200,{"contents":store.content_profiles()})
+                if parts == ["collections", collection, "variables"]: return _json(self,200,{"variables":store.variables()})
+                if parts == ["collections", collection, "commercial"]: return _json(self,200,store.drm_status())
+                if parts == ["collections", collection, "release"]: return _json(self,200,{"release":store.release()})
+                if parts == ["collections", collection, "commercial", "policies"]: return _json(self,200,{"policies":store.drm_policies()})
+                if parts == ["collections", collection, "integrity"]: return _json(self,200,store.integrity_status(recompute=False))
+                if parts == ["collections", collection, "integrity", "manifest"]: return _json(self,200,store.integrity_manifest())
+                if parts == ["collections", collection, "fair"]: return _json(self,200,store.fair_report(strict_publication=False))
+                if parts == ["collections", collection, "rights"]: return _json(self,200,{"rights":store.rights()})
+                if parts == ["collections", collection, "provenance"]: return _json(self,200,store.prov_json())
+                if parts == ["collections", collection, "datacite"]: return _json(self,200,store.datacite_metadata())
                 if parts == ["collections", collection, "crs"]: return _json(self, 200, {"crs":crs})
                 if parts == ["collections", collection, "fair"]: return _json(self,200,store.fair_report())
                 if parts == ["collections", collection, "provenance"]:
@@ -187,7 +198,7 @@ def handler_for(path: Path):
                       {"name":"tileRow", "in":"path", "required":True, "schema":{"type":"integer","minimum":0}}]
             params += [{"name":d["name"], "in":"query", "required":bool(d["required"]),
                        "schema":{"type":"string"}, "description":d["description"] or d["extent_kind"]} for d in dims]
-            return {"openapi":"3.0.3", "info":{"title":"DataTiles OGC API","version":"0.10.0"},
+            return {"openapi":"3.0.3", "info":{"title":"DataTiles OGC API","version":"0.15.0"},
                     "paths":{f"/collections/{collection}/tiles/WebMercatorQuad/{{tileMatrix}}/{{tileCol}}/{{tileRow}}":{
                         "get":{"parameters":params, "responses":{"200":{"description":"tile"},"404":{"description":"not found"}}}},
                         f"/collections/{collection}/profile":{"get":{"parameters":[

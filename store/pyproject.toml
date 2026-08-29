@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "datatiles-store"
+version = "0.4.0"
+description = "Flask progressive web catalog and explorer for DataTiles"
+requires-python = ">=3.10"
+dependencies = [
+  "Flask>=3.0,<4",
+  "SQLAlchemy>=2.0,<3",
+  "Flask-Login>=0.6,<1",
+  "Flask-WTF>=1.2,<2",
+  "Pillow>=10,<12",
+  "Authlib>=1.3,<2",
+  "Markdown>=3.6,<4",
+]
+
+[project.optional-dependencies]
+prod = ["gunicorn>=22,<24"]
+test = ["pytest>=8,<9"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["datatiles_store*"]

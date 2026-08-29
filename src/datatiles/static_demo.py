@@ -29,7 +29,12 @@ def build_static_demo(source: Path, output: Path) -> None:
         manifest={"title":metadata.get("name",source.stem),"bounds":bbox,
                   "warning":metadata.get("datatiles:warning","NOT FOR NAVIGATION"),
                   "attribution":metadata.get("attribution",""),
-                  "surface_sha256":surface["surface_sha256"],"source_container":source.name}
+                  "surface_sha256":surface["surface_sha256"],"source_container":source.name,
+                  "primary_identifier":store.primary_identifier(),"rights":store.rights(),
+                  "fair":store.fair_report(strict_publication=False),
+                  "provenance":store.prov_json(),"datacite":store.datacite_metadata(),
+                  "integrity":store.integrity_status(recompute=False),
+                  "commercial":store.drm_status()}
         for key in ("depth_m","seafloor_class","bathymetry_source","northwest_wind_shelter"):
             surface[key]=[value for row in surface[key] for value in row]
     (data_dir/"surface.json").write_text(json.dumps(surface,separators=(",",":"),ensure_ascii=False)+"\n")

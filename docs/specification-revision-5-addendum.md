@@ -1,0 +1,7 @@
+# DataTiles schema revision 5 — semantic, FAIR, rights, and source-ingestion addendum
+
+This addendum accompanies the extension bundle and records normative changes layered on the repository's DataTiles 1.0-draft revision-3 specification. The application script migrates schema revisions 3→4→5 and updates the repository specification with the Zarr ingestion profile. Until these changes are merged into one consolidated upstream specification, a conformance statement for this extension MUST cite both the base DataTiles 1.0-draft specification and this revision-5 addendum.
+
+Revision 4 adds the canonical semantic-variable registry and external identifier crosswalks. Revision 5 adds persistent identifiers, related identifiers, structured rights/licensing, FAIR publication evidence, DataCite-shaped citation metadata, and strengthened W3C PROV-aligned publication records. The scientific import profile comprises NetCDF, GRIB2, and Zarr source encodings.
+
+For Zarr specifically, the normative source contract is `zarr-source-profile.md`. Implementations MUST distinguish a multi-object store digest from a single-file SHA-256, MUST bind remote stores to immutable/versioned evidence, MUST preserve scientific semantics and source/output rights, MUST record the conversion parameters needed to reproduce tiling, and MUST NOT persist credentials or infer reuse permission from network accessibility.

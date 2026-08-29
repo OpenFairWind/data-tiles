@@ -1,0 +1,12 @@
+{% extends 'base.html' %}{% block title %}Catalog · DataTiles Store{% endblock %}
+{% block content %}
+<section class="hero"><div><p class="eyebrow">Scientific geospatial catalog</p><h1>Explore DataTiles</h1><p>Search standardized metadata, variables, provenance and rights. Preview available portrayal slices and download authorized research products.</p></div></section>
+<section class="catalog-shell">
+  <div class="catalog-tools">
+    <form class="search" method="get"><input name="q" value="{{q}}" placeholder="Search title, CF variable, licence, source, DOI…" aria-label="Search catalog"><button>Search</button></form>
+    {% if can('catalog.manage') %}<div class="manager"><span class="manager-label">{{managers_group}} CRUD</span><form method="post" action="{{url_for('scan')}}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Rescan catalog</button></form><form method="post" enctype="multipart/form-data" action="{{url_for('upload')}}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="file" name="file" required><button>Upload</button></form></div>{% endif %}
+  </div>
+  <div class="grid">
+  {% for item in items %}<article class="card"><div class="card-map"><span>{{ item.format }}</span></div><div class="card-body"><h2><a href="{{url_for('detail',item_id=item.id)}}">{{item.title}}</a></h2><p>{{item.description or 'No description supplied.'}}</p><dl><dt>Revision</dt><dd>{{item.schema_revision}}</dd><dt>Size</dt><dd>{{'%.1f'|format(item.size_bytes/1048576)}} MiB</dd></dl><div class="actions"><a class="primary" href="{{url_for('detail',item_id=item.id)}}">Explore</a>{% if can('catalog.download') %}<a href="{{url_for('agreement',item_id=item.id,next=url_for('download',item_id=item.id))}}">Licence / Download</a>{% endif %}</div></div></article>{% else %}<div class="empty"><h2>No matching DataTiles</h2><p>{% if q %}Try a broader metadata search.{% else %}An administrator can upload products or rescan the catalog directory.{% endif %}</p></div>{% endfor %}
+  </div>
+</section>{% endblock %}

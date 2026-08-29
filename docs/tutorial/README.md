@@ -1,4 +1,4 @@
-# DataTiles zero to hero in five lessons
+# DataTiles zero to hero in ten lessons
 
 This course develops DataTiles from first principles and ends with a reproducible mixed raster/vector publication. It treats DataTiles as a scientific data model rather than merely a file-manipulation library. Every lesson contains theory, a hands-on laboratory, observable checks, and questions for critical reflection.
 
@@ -11,6 +11,11 @@ This course develops DataTiles from first principles and ends with a reproducibl
 | [3. Raster matrices and vector features](lesson-3-raster-vector.md) | Coverage and feature models, content profiles, encoding semantics | Build one container containing DNT1 and tiled GeoJSON |
 | [4. Querying and deriving live products](lesson-4-query-api.md) | Exact selection, sampling, interpolation boundaries, OGC API patterns | Serve and query point, profile, surface, contour, and content resources |
 | [5. FAIR and reproducible publication](lesson-5-fair-publication.md) | Identity, provenance, CRS, licences, reproducibility versus replicability | Validate and prepare a citable research artifact |
+| [6. Conventions and source utilities](lesson-6-conventions-and-utils.md) | CF semantic identity, NetCDF/GRIB crosswalks, source provenance, declared resampling | Import local or URL-identified scientific grids into semantic DNT1 DataTiles |
+| [7. FAIR evidence, provenance, and licensing](lesson-7-fair-provenance-and-licensing.md) | FAIR gates, W3C PROV, SPDX rights, DataCite 4.7, publication evidence | Prepare a defensible scholarly release |
+| [8. Cryptographic integrity and signed releases](lesson-8-cryptographic-integrity.md) | canonical logical manifests, Ed25519 signatures, trust, detached envelopes, release verification | Sign and verify a final scholarly DataTiles release |
+| [9. Commercial distribution and DRM](lesson-9-commercial-drm.md) | ODRL policy, encrypted `.dtpkg`, recipient licences, key management | Distribute lawful proprietary DataTiles products |
+| [10. DataTiles Store PWA](lesson-10-datatiles-store.md) | Flask, SQLAlchemy, PWA, metadata indexing, RBAC, catalog search, interactive exploration | Publish an authenticated institutional DataTiles catalog |
 
 ## Prerequisites and setup
 
@@ -36,6 +41,6 @@ The builder is part of the tested repository. It creates two DNT1 matrices and o
 
 ## Evidence of completion
 
-A learner completing the course should be able to explain why the `tiles` view is necessary but insufficient, derive a canonical coordinate-set key, distinguish a numeric raster matrix from a portrayal, justify a vector content profile, query exact coordinates without silently interpolating, interpret the FAIR report conservatively, and reproduce the tutorial artifact from source.
+A learner completing the course should be able to explain why the `tiles` view is necessary but insufficient, derive a canonical coordinate-set key, distinguish a numeric raster matrix from a portrayal, justify a vector content profile, query exact coordinates without silently interpolating, interpret the FAIR report conservatively, and reproduce the tutorial artifact from source, and explain how NetCDF/CF and GRIB2 source metadata map into the DataTiles semantic-variable convention.
 
 The tutorial dataset is for education only and must not be used for navigation.
