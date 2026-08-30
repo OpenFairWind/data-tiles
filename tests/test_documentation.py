@@ -56,6 +56,7 @@ def test_documented_ci_and_release_workflows_exist():
     for gate in ("tests:", "browser-contracts:", "package:", "reproducibility:", "ci-success:"):
         assert gate in ci
     assert '["3.10", "3.11", "3.12", "3.13"]' in ci
+    assert "'.[demo,test,integrity,drm]'" in ci
     assert "actions/attest-build-provenance@v3" in release
     assert "pypa/gh-action-pypi-publish@release/v1" in release
     assert "environment:\n      name: pypi" in release

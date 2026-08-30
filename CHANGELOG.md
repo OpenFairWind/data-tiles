@@ -6,6 +6,7 @@
 - adds administrator-managed Store name, tagline, validated/normalized logo upload, and bounded Bootstrap colour, card, background, text, border, radius, shadow, and font settings;
 - adds Bearer-authenticated logo API parity, dynamic branding in the PWA manifest, security validation, regression tests, and updated Store documentation/visual evidence.
 - adds a hardened Docker/Gunicorn image, persistent-volume Docker Compose deployment, container operations documentation, and the Montella–Foster 2010 environmental-data cloud-storage citation in the stated historical lineage toward Zarr.
+- fixes the complete CI matrix by installing the declared `integrity` and `drm` extras required by the Ed25519 and encrypted-package tests.
 
 ## 0.20.0 — 2026-08-29
 
