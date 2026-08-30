@@ -1,0 +1,30 @@
+services:
+  store:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: datatiles-store:0.6.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      DATATILES_STORE_SECRET_KEY: "${DATATILES_STORE_SECRET_KEY:?set DATATILES_STORE_SECRET_KEY}"
+      DATATILES_STORE_ADMIN_PASSWORD: "${DATATILES_STORE_ADMIN_PASSWORD:?set DATATILES_STORE_ADMIN_PASSWORD}"
+      DATATILES_STORE_DATABASE_URL: "sqlite:////data/state/store.db"
+      DATATILES_STORE_CATALOG_DIR: "/data/catalog"
+      DATATILES_STORE_BRANDING_DIR: "/data/branding"
+      DATATILES_STORE_SESSION_COOKIE_SECURE: "${DATATILES_STORE_SESSION_COOKIE_SECURE:-0}"
+    volumes:
+      - datatiles-store-state:/data/state
+      - datatiles-store-catalog:/data/catalog
+      - datatiles-store-branding:/data/branding
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  datatiles-store-state:
+  datatiles-store-catalog:
+  datatiles-store-branding:

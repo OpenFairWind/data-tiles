@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — DataTiles Store 0.6.0
+
+- vendors Bootstrap 5.3.8 CSS/JavaScript for a responsive, locally served PWA shell;
+- adds administrator-managed Store name, tagline, validated/normalized logo upload, and bounded Bootstrap colour, card, background, text, border, radius, shadow, and font settings;
+- adds Bearer-authenticated logo API parity, dynamic branding in the PWA manifest, security validation, regression tests, and updated Store documentation/visual evidence.
+- adds a hardened Docker/Gunicorn image, persistent-volume Docker Compose deployment, container operations documentation, and the Montella–Foster 2010 environmental-data cloud-storage citation in the stated historical lineage toward Zarr.
+
 ## 0.20.0 — 2026-08-29
 
 - consolidates revision-8 semantic, FAIR, integrity, commercial-policy, and immutable-release tables into the normative specification and synchronizes the HTTP/OpenAPI contract;

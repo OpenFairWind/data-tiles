@@ -1,4 +1,4 @@
-{% extends 'base.html' %}{% block title %}{{item.title}} · DataTiles Store{% endblock %}
+{% extends 'base.html' %}{% block title %}{{item.title}} · {{store_name}}{% endblock %}
 {% block content %}
 <section class="explorer" data-item-id="{{item.id}}" data-bounds='{{ detail.bounds|tojson }}' data-minzoom="{{item.minzoom or ''}}" data-maxzoom="{{item.maxzoom or ''}}" data-accepted="{{'1' if accepted else '0'}}">
   <div class="preview-stage"><canvas id="scientificPreview" width="768" height="768" aria-label="Client-side DataTiles selected-slice preview"></canvas><div class="preview-key"><strong id="previewTitle">Selected-slice preview</strong><span id="previewStatus">{% if accepted %}Loading exact stored tile…{% else %}Agreement acceptance is required before preview data are retrieved.{% endif %}</span></div></div>

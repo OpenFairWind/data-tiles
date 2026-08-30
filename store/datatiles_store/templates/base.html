@@ -1,28 +1,32 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#07131f">
-  <title>{% block title %}DataTiles Store{% endblock %}</title>
+  <meta name="theme-color" content="{{ store_theme.navbar_background }}">
+  <title>{% block title %}{{ store_name }}{% endblock %}</title>
   <link rel="manifest" href="{{ url_for('manifest') }}">
+  <link rel="stylesheet" href="{{ url_for('static',filename='bootstrap.min.css') }}">
+  <style>:root,[data-bs-theme=dark]{--store-primary:{{store_theme.primary}};--store-primary-rgb:{{store_theme.primary_rgb}};--store-secondary:{{store_theme.secondary}};--store-success:{{store_theme.success}};--store-danger:{{store_theme.danger}};--store-warning:{{store_theme.warning}};--store-info:{{store_theme.info}};--store-body-bg:{{store_theme.body_background}};--store-body-color:{{store_theme.body_text}};--store-card-bg:{{store_theme.card_background}};--store-card-color:{{store_theme.card_text}};--store-border:{{store_theme.border}};--store-navbar-bg:{{store_theme.navbar_background}};--store-navbar-color:{{store_theme.navbar_text}};--store-radius:{{store_theme.radius}};--store-shadow:{{store_theme.shadow}};--store-font:{{store_theme.font}}}</style>
   <link rel="stylesheet" href="{{ url_for('static',filename='app.css') }}">
   {% block head %}{% endblock %}
 </head>
 <body>
-<header class="topbar">
-  <a class="brand" href="{{ url_for('catalog') }}">DataTiles <span>Store</span></a>
-  <nav><a href="{{ url_for('help_index') }}">Help</a>{% if current_user.is_authenticated %}<a href="{{ url_for('library') }}">My Library</a>{% endif %}
-    {% if current_user.is_authenticated %}<span class="user">{{ current_user.username }}</span>{% endif %}
-    {% if can('users.manage') %}<a href="{{ url_for('configuration') }}">Configuration</a><a href="{{ url_for('users') }}">Users</a><a href="{{ url_for('groups') }}">Groups</a>{% endif %}
-    {% if current_user.is_authenticated %}
-    <form class="inline" method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="linkbtn">Sign out</button></form>
-    {% endif %}
-  </nav>
-</header>
-{% with messages=get_flashed_messages(with_categories=true) %}{% if messages %}<div class="flash-wrap">{% for cat,msg in messages %}<div class="flash {{cat}}">{{msg}}</div>{% endfor %}</div>{% endif %}{% endwith %}
+<nav class="navbar navbar-expand-lg sticky-top store-navbar border-bottom" aria-label="Primary navigation">
+  <div class="container-fluid px-3 px-lg-4">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url_for('catalog') }}">{% if store_logo %}<img class="brand-logo" src="{{url_for('branding_logo')}}" alt="">{% endif %}<span><strong>{{ store_name }}</strong>{% if store_tagline %}<small class="brand-tagline d-none d-md-block">{{ store_tagline }}</small>{% endif %}</span></a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#storeNavigation" aria-controls="storeNavigation" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+    <div class="collapse navbar-collapse" id="storeNavigation"><div class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
+      <a class="nav-link" href="{{ url_for('help_index') }}">Help</a>{% if current_user.is_authenticated %}<a class="nav-link" href="{{ url_for('library') }}">My Library</a>{% endif %}
+      {% if can('users.manage') %}<a class="nav-link" href="{{ url_for('configuration') }}">Configuration</a><a class="nav-link" href="{{ url_for('users') }}">Users</a><a class="nav-link" href="{{ url_for('groups') }}">Groups</a>{% endif %}
+      {% if current_user.is_authenticated %}<span class="navbar-text small px-lg-2">{{ current_user.username }}</span><form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-light" type="submit">Sign out</button></form>{% endif %}
+    </div></div>
+  </div>
+</nav>
+{% with messages=get_flashed_messages(with_categories=true) %}{% if messages %}<div class="toast-container position-fixed top-0 end-0 p-3 store-toasts">{% for cat,msg in messages %}<div class="alert alert-{{cat if cat in ['success','danger','warning','info'] else 'info'}} shadow" role="status">{{msg}}</div>{% endfor %}</div>{% endif %}{% endwith %}
 <main>{% block content %}{% endblock %}</main>
-<footer><span>DataTiles Store</span><strong>Not for navigation</strong></footer>
+<footer class="container-fluid d-flex justify-content-between border-top py-3 px-4 small"><span>{{ store_name }}</span><strong>Not for navigation</strong></footer>
+<script src="{{ url_for('static',filename='bootstrap.bundle.min.js') }}"></script>
 <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js'));}</script>
 {% block scripts %}{% endblock %}
 </body></html>

@@ -1,9 +1,10 @@
 from __future__ import annotations
 import json
 from pathlib import Path
-from flask import abort, current_app, jsonify, render_template, request
+from flask import abort, current_app, flash, jsonify, render_template, request, send_file
 from markdown import markdown
 from sqlalchemy import select
+from .branding import logo_path, remove_logo, save_logo
 from .db import get_db
 from .models import AppSetting
 from .security import api_permission_required, permission_required
@@ -26,13 +27,41 @@ def register_admin(app,csrf):
     def configuration():
         db=get_db(); ensure_settings(db)
         if request.method=="POST":
-            for d in SETTINGS:
-                if d.secret and not request.form.get(d.key): continue
-                set_setting(db,d.key,request.form.get(d.key,"0" if d.default in {"0","1"} else ""))
-            db.commit()
+            try:
+                for d in SETTINGS:
+                    if d.secret and not request.form.get(d.key): continue
+                    set_setting(db,d.key,request.form.get(d.key,"0" if d.default in {"0","1"} else ""))
+                logo=request.files.get("store.logo")
+                if logo and logo.filename: save_logo(current_app,logo)
+                elif request.form.get("store.logo.remove")=="1": remove_logo(current_app)
+                db.commit(); flash("Store configuration saved.","success")
+            except ValueError as exc:
+                db.rollback(); flash(str(exc),"danger")
         vals={d.key:("" if d.secret else get_setting(db,d.key)) for d in SETTINGS}
-        deployment={"DATABASE_URL":current_app.config.get("DATABASE_URL"),"CATALOG_DIR":str(current_app.config.get("CATALOG_DIR")),"CATALOG_EXTENSIONS":", ".join(current_app.config.get("CATALOG_EXTENSIONS",())),"MAX_CONTENT_LENGTH":current_app.config.get("MAX_CONTENT_LENGTH"),"SESSION_COOKIE_SECURE":current_app.config.get("SESSION_COOKIE_SECURE"),"ADMIN_GROUP":current_app.config.get("ADMIN_GROUP"),"MANAGERS_GROUP":current_app.config.get("MANAGERS_GROUP")}
-        return render_template("configuration.html",sections=_sections(),values=vals,deployment=deployment)
+        deployment={"DATABASE_URL":current_app.config.get("DATABASE_URL"),"CATALOG_DIR":str(current_app.config.get("CATALOG_DIR")),"BRANDING_DIR":str(current_app.config.get("BRANDING_DIR")),"CATALOG_EXTENSIONS":", ".join(current_app.config.get("CATALOG_EXTENSIONS",())),"MAX_CONTENT_LENGTH":current_app.config.get("MAX_CONTENT_LENGTH"),"SESSION_COOKIE_SECURE":current_app.config.get("SESSION_COOKIE_SECURE"),"ADMIN_GROUP":current_app.config.get("ADMIN_GROUP"),"MANAGERS_GROUP":current_app.config.get("MANAGERS_GROUP")}
+        return render_template("configuration.html",sections=_sections(),values=vals,deployment=deployment,logo_present=logo_path(current_app).is_file())
+
+    @app.get("/branding/logo")
+    def branding_logo():
+        path=logo_path(current_app)
+        if not path.is_file(): abort(404)
+        return send_file(path,mimetype="image/png",conditional=True,max_age=3600)
+
+    @app.put("/api/v1/configuration/logo")
+    @csrf.exempt
+    @api_permission_required("users.manage")
+    def api_configuration_logo():
+        logo=request.files.get("logo")
+        if not logo or not logo.filename: return jsonify({"error":"logo_required"}),400
+        try: save_logo(current_app,logo)
+        except ValueError as exc: return jsonify({"error":"invalid_logo","message":str(exc)}),400
+        return jsonify({"updated":True,"url":"/branding/logo"})
+
+    @app.delete("/api/v1/configuration/logo")
+    @csrf.exempt
+    @api_permission_required("users.manage")
+    def api_configuration_logo_delete():
+        return jsonify({"removed":remove_logo(current_app)})
 
     @app.post("/admin/configuration/test-smtp")
     @permission_required("users.manage")
@@ -60,16 +89,19 @@ def register_admin(app,csrf):
     @api_permission_required("users.manage")
     def api_configuration():
         db=get_db(); ensure_settings(db)
-        return jsonify({"runtime":{d.key:{"value":None if d.secret else get_setting(db,d.key),"secret":d.secret,"section":d.section,"label":d.label,"restart_required":d.restart} for d in SETTINGS},"deployment":{"DATABASE_URL":current_app.config.get("DATABASE_URL"),"CATALOG_DIR":str(current_app.config.get("CATALOG_DIR")),"MAX_CONTENT_LENGTH":current_app.config.get("MAX_CONTENT_LENGTH"),"SESSION_COOKIE_SECURE":current_app.config.get("SESSION_COOKIE_SECURE"),"ADMIN_GROUP":current_app.config.get("ADMIN_GROUP"),"MANAGERS_GROUP":current_app.config.get("MANAGERS_GROUP")}})
+        return jsonify({"runtime":{d.key:{"value":None if d.secret else get_setting(db,d.key),"secret":d.secret,"section":d.section,"label":d.label,"restart_required":d.restart} for d in SETTINGS},"deployment":{"DATABASE_URL":current_app.config.get("DATABASE_URL"),"CATALOG_DIR":str(current_app.config.get("CATALOG_DIR")),"BRANDING_DIR":str(current_app.config.get("BRANDING_DIR")),"MAX_CONTENT_LENGTH":current_app.config.get("MAX_CONTENT_LENGTH"),"SESSION_COOKIE_SECURE":current_app.config.get("SESSION_COOKIE_SECURE"),"ADMIN_GROUP":current_app.config.get("ADMIN_GROUP"),"MANAGERS_GROUP":current_app.config.get("MANAGERS_GROUP")}})
 
     @app.patch("/api/v1/configuration")
     @csrf.exempt
     @api_permission_required("users.manage")
     def api_configuration_update():
         db=get_db(); data=request.get_json(silent=True) or {}
-        for k,v in data.items():
-            if k not in BY_KEY: return jsonify({"error":"unknown_setting","key":k}),400
-            set_setting(db,k,str(v))
+        try:
+            for k,v in data.items():
+                if k not in BY_KEY: return jsonify({"error":"unknown_setting","key":k}),400
+                set_setting(db,k,str(v))
+        except ValueError as exc:
+            db.rollback(); return jsonify({"error":"invalid_setting","message":str(exc)}),400
         db.commit(); return jsonify({"updated":sorted(data)})
 
     @app.get("/api/v1/help")

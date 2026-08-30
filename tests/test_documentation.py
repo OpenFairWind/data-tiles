@@ -95,8 +95,9 @@ def test_demo_screenshots_are_registered_jpeg_evidence():
 
 def test_store_figures_and_screenshots_are_registered():
     store_docs=ROOT/"store/docs"
-    figures={"store-architecture.svg","access-gates.svg","client-side-preview.svg"}
-    images={"store-catalog.jpg","store-scientific-preview.jpg","store-agreement.jpg"}
+    figures={"store-architecture.svg","access-gates.svg","client-side-preview.svg","branding-theme.svg"}
+    images={"store-catalog.jpg","store-scientific-preview.jpg","store-agreement.jpg",
+            "store-configuration.jpg"}
     register=(store_docs/"visuals.md").read_text()
     for name in sorted(figures):
         root=ET.parse(store_docs/"figures"/name).getroot()

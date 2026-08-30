@@ -6,6 +6,7 @@ BASE_DIR = Path(__file__).resolve().parent
 SECRET_KEY = os.environ.get("DATATILES_STORE_SECRET_KEY", "replace-this-development-secret")
 DATABASE_URL = os.environ.get("DATATILES_STORE_DATABASE_URL", f"sqlite:///{BASE_DIR / 'store.db'}")
 CATALOG_DIR = Path(os.environ.get("DATATILES_STORE_CATALOG_DIR", BASE_DIR / "catalog"))
+BRANDING_DIR = Path(os.environ.get("DATATILES_STORE_BRANDING_DIR", BASE_DIR / "instance" / "branding"))
 CATALOG_EXTENSIONS = (".datatiles", ".mbtiles", ".sqlite", ".db")
 MAX_CONTENT_LENGTH = int(os.environ.get("DATATILES_STORE_MAX_UPLOAD", str(8 * 1024 * 1024 * 1024)))
 ALLOW_PUBLIC_CATALOG = os.environ.get("DATATILES_STORE_PUBLIC", "0") == "1"

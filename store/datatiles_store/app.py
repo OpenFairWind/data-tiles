@@ -19,11 +19,12 @@ from .catalog import extract_metadata, index_file, preview_tile, resolve_item_pa
 from .db import close_db, get_db, init_engine
 from .models import AgreementAcceptance, ApiToken, AuditEvent, CatalogItem, Group, Role, User, PaymentTransaction, PurchaseRecord, DownloadRecord, UpdateNotification
 from .security import api_permission_required, api_user, issue_token, permission_required, safe_next_url
-from .settings import get_bool, get_setting
+from .settings import SETTINGS, get_bool, get_setting
 from .auth_ext import register_auth
 from .admin_ext import register_admin
 from .commerce import has_purchase,is_paid,provider_from_settings,new_transaction,complete_purchase,record_download,generate_update_notifications,serialize_purchase,serialize_download,serialize_notification,money
 from .payments import CheckoutRequest
+from .branding import logo_path, theme_context
 
 login_manager = LoginManager()
 csrf = CSRFProtect()
@@ -48,6 +49,7 @@ def create_app(config_object=None) -> Flask:
 
     @app.context_processor
     def inject_globals():
+        db=get_db(); settings={d.key:get_setting(db,d.key) for d in SETTINGS if d.key.startswith("store.") or d.key.startswith("theme.")}
         return {
             "can": lambda p: current_user.is_authenticated and current_user.can(p),
             "managers_group": app.config["MANAGERS_GROUP"],
@@ -56,6 +58,10 @@ def create_app(config_object=None) -> Flask:
             "microsoft_enabled": (lambda: get_bool(get_db(), "auth.microsoft.enabled")),
             "oauth2_enabled": (lambda: get_bool(get_db(), "auth.oauth2.enabled")),
             "oauth2_name": (lambda: get_setting(get_db(), "auth.oauth2.name")),
+            "store_name": settings["store.name"],
+            "store_tagline": settings["store.tagline"],
+            "store_logo": logo_path(app).is_file(),
+            "store_theme": theme_context(settings),
         }
 
     def get_item(item_id, *, include_unavailable=False):
@@ -604,7 +610,11 @@ def create_app(config_object=None) -> Flask:
     def api_openapi(): return jsonify(openapi_document())
 
     @app.get("/manifest.webmanifest")
-    def manifest(): return app.send_static_file("manifest.webmanifest")
+    def manifest():
+        db=get_db(); name=get_setting(db,"store.name"); theme=get_setting(db,"theme.navbar.background")
+        payload={"name":name,"short_name":name[:24],"start_url":"/catalog","display":"standalone","background_color":get_setting(db,"theme.body.background"),"theme_color":theme}
+        if logo_path(app).is_file(): payload["icons"]=[{"src":"/branding/logo","sizes":"any","type":"image/png","purpose":"any"}]
+        response=jsonify(payload); response.mimetype="application/manifest+json"; response.headers["Cache-Control"]="no-cache"; return response
 
     @app.get("/service-worker.js")
     def service_worker():
@@ -649,6 +659,7 @@ def openapi_document():
             "/api/v1/register":{"post":{"summary":"Register managed account and send email verification"}},
             "/api/v1/verify-email":{"post":{"summary":"Verify registered email token"}},
             "/api/v1/configuration":{"get":{"summary":"Administrator configuration"},"patch":{"summary":"Update runtime configuration"}},
+            "/api/v1/configuration/logo":{"put":{"summary":"Upload and normalize the Store logo as PNG"},"delete":{"summary":"Remove the Store logo"}},
             "/api/v1/help":{"get":{"summary":"List Store help documents"}},
             "/api/v1/auth/me":{"get":{"summary":"Current API identity","security":[{"bearerAuth":[]}]}},
             "/api/v1/catalog":{"get":{"summary":"Search catalog"},"post":{"summary":"Upload/Create DataTiles asset","security":[{"bearerAuth":[]}]}},

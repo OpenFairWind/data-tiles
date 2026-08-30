@@ -1,6 +1,6 @@
 # DataTiles Store: institutional catalog and PWA
 
-The optional `/store` application turns a directory of DataTiles releases into a searchable institutional catalog without changing the scientific objects themselves. It is implemented in Python/Flask and uses SQLAlchemy 2.x for all application-database persistence.
+The optional `/store` application turns a directory of DataTiles releases into a searchable institutional catalog without changing the scientific objects themselves. It is implemented in Python/Flask, uses SQLAlchemy 2.x for all application-database persistence, and vendors Bootstrap 5.3.8 for the responsive browser interface.
 
 ## Architectural separation
 
@@ -10,6 +10,10 @@ There are two databases with deliberately different purposes:
 2. **The Store database** is an application database managed through SQLAlchemy. It contains users, groups, roles and a denormalized searchable catalog index. It does not become part of the scholarly DataTiles provenance chain.
 
 This separation avoids accidental modification of published checksums/signatures and permits the catalog index to be rebuilt at any time from authoritative DataTiles files.
+
+Branding is also operational state. The Store name, tagline, and validated Bootstrap theme tokens are held in the SQLAlchemy settings table; the optional administrator-uploaded logo is normalized to PNG in `BRANDING_DIR`. None of these presentation values are inserted into a DataTiles object or interpreted as scientific metadata.
+
+Theme inputs are constrained to hexadecimal colours and fixed radius, shadow, and font choices. Logo upload accepts bounded PNG/JPEG/WebP inputs and rejects SVG. The browser and API provide equivalent administrator operations through Configuration and `/api/v1/configuration` plus `/api/v1/configuration/logo`.
 
 ## Catalog discovery and indexing
 

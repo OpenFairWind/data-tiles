@@ -1,5 +1,9 @@
 # Zarr source-ingestion profile
 
+## Historical context
+
+The DataTiles project identifies Montella and Foster's 2010 chapter, “Using Hybrid Grid/Cloud Computing Technologies for Environmental Data Elastic Storage, Processing, and Provisioning,” as an early project-lineage precursor to later cloud-native multidimensional storage approaches, including Zarr. The chapter predates Zarr and concerns elastic storage, processing, and delivery of environmental data across grid/cloud infrastructure; it is cited as intellectual context, not as part of the Zarr normative specification or as publisher evidence of a direct influence claim. See `references.md` and [doi:10.1007/978-1-4419-6524-0_26](https://doi.org/10.1007/978-1-4419-6524-0_26).
+
 This document defines the DataTiles utility profile for importing Zarr datasets. It is normative for `utils/zarr2datatiles.py` and informative for independent implementations unless they claim this profile.
 
 ## Scope

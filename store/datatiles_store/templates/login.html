@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block title %}Sign in · DataTiles Store{% endblock %}
+{% extends "base.html" %}{% block title %}Sign in · {{store_name}}{% endblock %}
 {% block content %}<section class="auth-card"><h1>Sign in</h1>
 {% if local_enabled %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Email or username<input name="username" autocomplete="username" required></label><label>Password<input type="password" name="password" autocomplete="current-password" required></label><label><input type="checkbox" name="remember" value="1"> Remember me</label><button type="submit">Sign in</button></form>{% endif %}
 <div class="sso-buttons">{% if google_enabled %}<a class="button" href="{{ url_for('external_login',provider='google') }}">Continue with Google</a>{% endif %}{% if microsoft_enabled %}<a class="button" href="{{ url_for('external_login',provider='microsoft') }}">Continue with Microsoft</a>{% endif %}{% if oauth2_enabled %}<a class="button" href="{{ url_for('external_login',provider='oauth2') }}">Continue with {{ oauth2_name }}</a>{% endif %}</div>

@@ -16,7 +16,7 @@ python -m pip install -e .
 python run.py
 ```
 
-For production install `.[prod]` and run behind an HTTPS reverse proxy, for example Gunicorn. Set a strong `DATATILES_STORE_SECRET_KEY`, protect the application database and catalog filesystem, and set secure session cookies.
+For production install `.[prod]` and run behind an HTTPS reverse proxy, for example Gunicorn. Set a strong `DATATILES_STORE_SECRET_KEY`, protect the application database, catalog filesystem, and branding directory, and set secure session cookies. Bootstrap 5.3.8 is vendored with the Store, so runtime access to a public asset CDN is not required.
 
 ## Initial administrator
 
@@ -24,4 +24,4 @@ For production install `.[prod]` and run behind an HTTPS reverse proxy, for exam
 
 ## Persistence
 
-Back up the SQLAlchemy database and catalog directory together. DataTiles files are independently checksum-indexed; acceptance evidence and audit events live in the application database. Do not restore one without considering consistency with the other.
+Back up the SQLAlchemy database, catalog directory, and `DATATILES_STORE_BRANDING_DIR` together. DataTiles files are independently checksum-indexed; acceptance evidence and theme settings live in the application database, while the normalized logo is a separate presentation asset. Do not restore one without considering consistency with the others.

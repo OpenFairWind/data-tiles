@@ -1,4 +1,4 @@
-{% extends 'base.html' %}{% block title %}Agreement · {{item.title}} · DataTiles Store{% endblock %}
+{% extends 'base.html' %}{% block title %}Agreement · {{item.title}} · {{store_name}}{% endblock %}
 {% block content %}
 <section class="agreement-page">
   <a class="back" href="{{url_for('detail',item_id=item.id)}}">← {{item.title}}</a>

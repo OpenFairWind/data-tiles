@@ -2,6 +2,8 @@
 
 All operational Store capabilities have `/api/v1` counterparts for third-party applications. Bearer tokens resolve to the same users, groups, roles, permissions, licence acceptance, and audit rules as browser sessions. API writes require an explicit `Authorization: Bearer …` header; an ambient browser session cookie is deliberately insufficient on CSRF-exempt API routes. Browser forms use separate CSRF-protected routes.
 
+Administrators update validated branding/theme values with `PATCH /api/v1/configuration`. Upload a logo with multipart `PUT /api/v1/configuration/logo` using field `logo`; remove it with `DELETE /api/v1/configuration/logo`. The normalized public PNG is available at `GET /branding/logo`. The API never accepts arbitrary CSS.
+
 Use `/api/v1/openapi.json` for machine-readable discovery. Configuration is available to administrators through `GET/PATCH /api/v1/configuration`; help content is available through `/api/v1/help` and `/api/v1/help/{slug}`.
 
 Data preview/download can return HTTP `428 Precondition Required` until the current licence and safety/no-liability agreement is accepted for the exact file hash and rights fingerprint.

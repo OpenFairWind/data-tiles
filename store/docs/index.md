@@ -3,6 +3,7 @@
 This is the authoritative operational documentation for the DataTiles Store PWA. These Markdown files are rendered directly by the in-application **Help** section and are also available through `/api/v1/help` for third-party integrations.
 
 - [Installation and deployment](installation.md)
+- [Docker and Docker Compose deployment](container-deployment.md)
 - [Configuration](configuration.md)
 - [Authentication and registration](authentication.md)
 - [SMTP and email verification](smtp.md)
@@ -16,5 +17,7 @@ This is the authoritative operational documentation for the DataTiles Store PWA.
 - [Figures, screenshots, and visual provenance](visuals.md)
 
 ![Store architecture](figures/store-architecture.svg)
+
+![Branding and Bootstrap theme pipeline](figures/branding-theme.svg)
 
 Production operators should read the configuration, security, agreements, and payment sections before exposing a Store to the Internet. DataTiles data licences remain independent of the Apache-2.0 Store software licence.

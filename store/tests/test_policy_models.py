@@ -36,5 +36,14 @@ def test_store_auth_configuration_models_exist():
 def test_store_help_docs_present():
     from pathlib import Path
     docs = Path(__file__).resolve().parents[1] / "docs"
-    required = {"installation.md","configuration.md","authentication.md","smtp.md","management.md","api.md","agreements.md","security.md","troubleshooting.md"}
+    required = {"installation.md","container-deployment.md","configuration.md","authentication.md","smtp.md","management.md","api.md","agreements.md","security.md","troubleshooting.md"}
     assert required.issubset({p.name for p in docs.glob("*.md")})
+
+
+def test_branding_settings_are_validated():
+    import pytest
+    from datatiles_store.settings import validate_setting
+    assert validate_setting("store.name","Ocean Store")=="Ocean Store"
+    assert validate_setting("theme.primary","#abcdef")=="#abcdef"
+    with pytest.raises(ValueError): validate_setting("theme.primary","red")
+    with pytest.raises(ValueError): validate_setting("theme.radius","99rem")
