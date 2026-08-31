@@ -315,6 +315,37 @@ def _geometry_bounds(geometry: dict[str, Any]) -> tuple[float,float,float,float]
     return min(p[0] for p in points),min(p[1] for p in points),max(p[0] for p in points),max(p[1] for p in points)
 
 
+def load_demo_ports(config_path: Path, config: dict[str, Any]) -> tuple[Path | None,list[dict[str,Any]]]:
+    """Load and deterministically clip the declared point-port resource."""
+    reference=config.get("ports_resource")
+    if not reference:return None,[]
+    path=(config_path.parent/reference).resolve()
+    value=json.loads(path.read_text(encoding="utf-8"))
+    if value.get("type")!="FeatureCollection":raise ValueError("ports resource is not a GeoJSON FeatureCollection")
+    west,south,east,north=config["bbox_wgs84"]; result=[]
+    for index,feature in enumerate(value.get("features",[])):
+        geometry=feature.get("geometry") or {}; coordinates=geometry.get("coordinates") or []
+        if geometry.get("type")!="Point" or len(coordinates)<2:raise ValueError(f"ports feature {index} is not a GeoJSON Point")
+        lon,lat=coordinates[:2]
+        if not all(isinstance(v,(int,float)) and not isinstance(v,bool) and math.isfinite(v) for v in (lon,lat)):
+            raise ValueError(f"ports feature {index} has invalid coordinates")
+        if west<=lon<=east and south<=lat<=north:result.append(feature)
+    return path,sorted(result,key=lambda feature:(str((feature.get("properties") or {}).get("id","")),json.dumps(feature,sort_keys=True)))
+
+
+def tile_point_features(features: list[dict[str,Any]],minzoom: int,maxzoom: int) -> dict[tuple[int,int,int],list[dict[str,Any]]]:
+    """Bucket unmodified CRS84 point features by XYZ tile address."""
+    buckets: dict[tuple[int,int,int],list[dict[str,Any]]]={}
+    for feature in features:
+        lon,lat=feature["geometry"]["coordinates"][:2]
+        for z in range(minzoom,maxzoom+1):
+            n=2**z; x=max(0,min(n-1,int(math.floor((lon+180)/360*n))))
+            latitude=max(-85.05112878,min(85.05112878,lat))
+            y=max(0,min(n-1,int(math.floor((1-math.asinh(math.tan(math.radians(latitude)))/math.pi)/2*n))))
+            buckets.setdefault((z,x,y),[]).append(feature)
+    return buckets
+
+
 def _tile_bounds(z: int, x: int, y: int) -> tuple[float,float,float,float]:
     n=2**z
     west=x/n*360-180; east=(x+1)/n*360-180
@@ -515,6 +546,7 @@ def build(config_path: Path, work: Path) -> None:
                    if key=="nautical" or key.startswith("nautical_") and key!="nautical_catalogue"]
     nautical=(overpass_to_geojson([work/"raw"/lock["sources"][key]["file"] for key in nautical_keys])
               if "nautical" in config["sources"] else {"type":"FeatureCollection","features":[]})
+    ports_path,ports=load_demo_ports(config_path,config)
     palette=np.array([[210,210,210],[170,170,170],[175,145,110],[105,85,70],[224,204,145],
                       [160,145,120],[115,105,100],[90,150,70],[35,135,75],[205,85,100]],dtype=np.uint8)
     seafloor_preview=work/"seafloor-class-preview.png"; Image.fromarray(palette[fused]).save(seafloor_preview,optimize=False,compress_level=9)
@@ -527,6 +559,7 @@ def build(config_path: Path, work: Path) -> None:
     output=work/config.get("output","gaeta-to-maratea.datatiles")
     if output.exists(): output.unlink()
     tile_size=config["tiles"]["tile_size"]; minzoom=config["tiles"]["minzoom"]; maxzoom=config["tiles"]["maxzoom"]
+    port_tiles=tile_point_features(ports,minzoom,maxzoom)
     source_entities={key:f"urn:datatiles:source:{key}:{info['sha256']}" for key,info in lock["sources"].items()
                      if key in ("bathymetry","land","substrate","habitat","nautical") or key.startswith("jamme_") or key.startswith("nautical_") and key!="nautical_catalogue"}
     coordinates={
@@ -568,6 +601,13 @@ def build(config_path: Path, work: Path) -> None:
         store.add_provenance_activity(activity,"deterministic-tiling",config["title"]+" DataTiles build",software=f"DataTiles {__version__}",parameters={"config_sha256":sha256(config_path),"depth_transform":depth_transform,"northwest_shelter":{"method":"northwest land-interception ray","reach_cells":shelter_reach,"status":"derived exposure proxy"}})
         store.add_provenance_relation(activity,"wasAssociatedWith","urn:software:datatiles")
         for entity in source_entities.values(): store.add_provenance_relation(activity,"used",entity)
+        ports_entity=None
+        if ports_path:
+            ports_digest=sha256(ports_path); ports_entity=f"urn:datatiles:source:ports:{ports_digest}"
+            store.add_provenance_entity(ports_entity,"dataset-snapshot","Bundled ports GeoJSON",checksum_algorithm="sha256",
+                                        checksum=ports_digest,attributes={"resource":"resources/ports.json","features_in_demo":len(ports),
+                                                                          "warning":"unofficial; not a navigation aid"})
+            store.add_provenance_relation(activity,"used",ports_entity)
         count=0
         for z in range(minzoom,maxzoom+1):
             xs,ys=_tile_range(bbox,z)
@@ -594,15 +634,23 @@ def build(config_path: Path, work: Path) -> None:
                                   encoding="GeoJSON",schema={"geometry_types":["Point","LineString"],"property_prefix":"seamark:","crs":"OGC:CRS84"})
                         for entity in nautical_entities:store.link_tile_provenance(z,x,y,nautical_coordinates,entity,xyz=True)
                         count+=1
+        ports_coordinates={"variable":"ports","dataset_release":config.get("ports_release","bundled-ports")}
+        ports_schema={"geometryTypes":["Point"],"crs":"OGC:CRS84","featureCount":len(ports),
+                      "portrayal":"client-side nautical harbour symbol","navigationStatus":"unofficial"}
+        for (z,x,y),features in sorted(port_tiles.items()):
+            store.put(z,x,y,canonical_json({"type":"FeatureCollection","features":features}),ports_coordinates,xyz=True,
+                      data_type="vector",media_type="application/geo+json",encoding="GeoJSON",schema=ports_schema)
+            if ports_entity:store.link_tile_provenance(z,x,y,ports_coordinates,ports_entity,xyz=True)
+            count+=1
         for name,value in {
             "bounds":",".join(map(str,bbox)), "center":f"{(bbox[0]+bbox[2])/2},{(bbox[1]+bbox[3])/2},{minzoom}", "minzoom":str(minzoom), "maxzoom":str(maxzoom),
-            "description":"Reproducible finest-finite JammeGaia22 bathymetry with EMODnet fallback, source coverage, substrate, habitat, fused seafloor classification, and stored OpenStreetMap seamark vectors for the Gaeta-to-Maratea corridor.",
-            "attribution":"JammeGaia22/MGDS, EMODnet products, GSHHG/Wessel and Smith, and OpenStreetMap contributors (ODbL).",
+            "description":"Reproducible finest-finite JammeGaia22 bathymetry with EMODnet fallback, source coverage, substrate, habitat, fused seafloor classification, stored OpenStreetMap seamark vectors, and bundled port features for the Gaeta-to-Maratea corridor.",
+            "attribution":"JammeGaia22/MGDS, EMODnet products, GSHHG/Wessel and Smith, OpenStreetMap contributors (ODbL), and the bundled unofficial ports resource.",
             "version":"1", "datatiles:demo_config_sha256":sha256(config_path), "datatiles:warning":"NAUTICAL-CHART AID ONLY; NOT AN OFFICIAL OR SOLE SOURCE FOR NAVIGATION",
             "datatiles:fair_profile":"1", "datatiles:identifier":"urn:datatiles:demo:from-gaeta-to-maratea:1",
             "datatiles:license":"https://creativecommons.org/licenses/by/4.0/", "datatiles:access_rights":"public",
             "datatiles:creators":json.dumps([{"name":"Raffaele Montella"}],separators=(",",":")),
-            "datatiles:keywords":json.dumps(["bathymetry","seabed substrate","marine habitat","seamark","OpenSeaMap","Bay of Naples","EMODnet"],separators=(",",":")),
+            "datatiles:keywords":json.dumps(["bathymetry","seabed substrate","marine habitat","seamark","ports","OpenSeaMap","Bay of Naples","EMODnet"],separators=(",",":")),
             "datatiles:issued":"2026-08-27", "datatiles:modified":"2026-08-27",
             "datatiles:landing_page":"https://github.com/OpenFairWind/DataTiles",
             "datatiles:classes":json.dumps(CLASS_NAMES,separators=(",",":"),sort_keys=True),
@@ -617,6 +665,8 @@ def build(config_path: Path, work: Path) -> None:
              "previews":{"bathymetry":{"file":bathymetry_preview.name,"sha256":sha256(bathymetry_preview)},
                          "seafloor_class":{"file":seafloor_preview.name,"sha256":sha256(seafloor_preview)}},
              "grid_shape":[height,width],"bathymetry_grid_shape":[depth_height,depth_width],"depth_transform":depth_transform,
+             "ports":{"source":ports_path.name if ports_path else None,"source_sha256":sha256(ports_path) if ports_path else None,
+                      "features_in_demo":len(ports),"tile_records":len(port_tiles)},
              "bathymetry_source_cell_counts":{str(code):int((bathymetry_source==code).sum()) for code in sorted(bathymetry_source_classes)},
              "class_cell_counts":{str(code):int((fused==code).sum()) for code in sorted(CLASS_NAMES)},
              "runtime_lock_sha256":sha256(runtime_lock),"environment":runtime}
@@ -626,6 +676,7 @@ def build(config_path: Path, work: Path) -> None:
              (work/"artifact-manifest.json","artifact-manifest.json"),(output,output.name),
              (bathymetry_preview,bathymetry_preview.name),(seafloor_preview,seafloor_preview.name)]
     if (work/"medchart-import.json").exists(): members.append((work/"medchart-import.json","medchart-import.json"))
+    if ports_path:members.append((ports_path,"resources/ports.json"))
     members += [(work/"raw"/info["file"],"raw/"+info["file"]) for info in lock["sources"].values()]
     with zipfile.ZipFile(bundle,"w",compression=zipfile.ZIP_DEFLATED,compresslevel=9) as archive:
         for source,name in sorted(members,key=lambda item:item[1]):
@@ -645,6 +696,9 @@ def verify(config_path: Path, work: Path) -> None:
     if sha256(output) != manifest["output_sha256"]: errors.append("output checksum")
     for name,info in manifest.get("previews",{}).items():
         if sha256(work/info["file"]) != info["sha256"]: errors.append(f"preview:{name}")
+    ports_path,_=load_demo_ports(config_path,json.loads(config_path.read_text()))
+    if manifest.get("ports",{}).get("source_sha256") and (not ports_path or sha256(ports_path)!=manifest["ports"]["source_sha256"]):
+        errors.append("ports resource checksum")
     with DataTiles(output) as store: errors.extend("database:"+error for error in store.validate())
     bundle_name=Path(manifest["output"]).stem+"-evidence.zip"
     bundle_info=json.loads((work/(bundle_name+".sha256")).read_text())

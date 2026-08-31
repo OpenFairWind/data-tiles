@@ -85,5 +85,7 @@
   },
   "derived": {
     "northwest_shelter_reach_cells": 32
-  }
+  },
+  "ports_resource": "../../resources/ports.json",
+  "ports_release": "bundled-ports-2026-08-29"
 }

@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+"""Convert repeated XML records containing latitude and longitude elements to point DataTiles."""
+import argparse, xml.etree.ElementTree as ET
+from _vector_import import add_common_arguments, run
+
+p=argparse.ArgumentParser(prog="xml2datatiles",description=__doc__); add_common_arguments(p)
+p.add_argument("--record",help="record element name; defaults to each parent containing a coordinate pair")
+p.add_argument("--latitude",default="latitude",help="latitude child element name"); p.add_argument("--longitude",default="longitude",help="longitude child element name")
+def local(tag): return tag.rsplit("}",1)[-1]
+def load(a):
+    if a.input.stat().st_size>256*1024*1024: raise ValueError("XML input exceeds the 256 MiB safety limit")
+    root=ET.parse(a.input).getroot(); result=[]
+    for record in root.iter():
+        if a.record and local(record.tag)!=a.record: continue
+        children={local(child.tag):child.text for child in record}
+        if a.latitude not in children or a.longitude not in children: continue
+        try: coordinates=[float(children[a.longitude]),float(children[a.latitude])]
+        except (TypeError,ValueError) as exc: raise ValueError("XML record has invalid latitude/longitude") from exc
+        properties={key:value for key,value in children.items() if key not in (a.latitude,a.longitude)}
+        result.append({"type":"Feature","geometry":{"type":"Point","coordinates":coordinates},"properties":properties})
+    if not result: raise ValueError("XML must contain a record with latitude and longitude elements")
+    return result
+if __name__ == "__main__": raise SystemExit(run(p,load))

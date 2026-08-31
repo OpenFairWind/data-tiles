@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""Convert GPX waypoints, routes, and tracks to feature DataTiles."""
+import argparse, xml.etree.ElementTree as ET
+from _vector_import import add_common_arguments, run
+p=argparse.ArgumentParser(prog="gpx2datatiles",description=__doc__); add_common_arguments(p)
+def local(tag): return tag.rsplit("}",1)[-1]
+def props(element):
+    return {local(c.tag):c.text for c in element if local(c.tag) not in ("trkseg","rtept","trkpt") and c.text is not None}
+def point(element):
+    try: return [float(element.attrib["lon"]),float(element.attrib["lat"])]
+    except (KeyError,ValueError) as exc: raise ValueError(f"GPX {local(element.tag)} lacks valid lat/lon attributes") from exc
+def load(a):
+    if a.input.stat().st_size>256*1024*1024: raise ValueError("GPX input exceeds the 256 MiB safety limit")
+    root=ET.parse(a.input).getroot()
+    if local(root.tag)!="gpx": raise ValueError("input root element is not GPX")
+    result=[]
+    for child in root:
+        kind=local(child.tag)
+        if kind=="wpt": result.append({"type":"Feature","geometry":{"type":"Point","coordinates":point(child)},"properties":props(child)})
+        elif kind=="rte":
+            coordinates=[point(e) for e in child if local(e.tag)=="rtept"]
+            if coordinates: result.append({"type":"Feature","geometry":{"type":"LineString","coordinates":coordinates},"properties":props(child)})
+        elif kind=="trk":
+            segments=[[point(e) for e in segment if local(e.tag)=="trkpt"] for segment in child if local(segment.tag)=="trkseg"]
+            segments=[s for s in segments if s]
+            if segments:
+                geometry={"type":"LineString","coordinates":segments[0]} if len(segments)==1 else {"type":"MultiLineString","coordinates":segments}
+                result.append({"type":"Feature","geometry":geometry,"properties":props(child)})
+    if not result: raise ValueError("GPX contains no waypoints, routes, or track segments")
+    return result
+if __name__ == "__main__": raise SystemExit(run(p,load))

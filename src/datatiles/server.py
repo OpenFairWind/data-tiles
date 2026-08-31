@@ -87,6 +87,7 @@ def handler_for(path: Path):
                                      {"rel":"query","href":f"/collections/{collection_url}/query","type":"application/geo+json"},
                                      {"rel":"contours","href":f"/collections/{collection_url}/contours","type":"application/geo+json"},
                                      {"rel":"nautical-items","href":f"/collections/{collection_url}/nautical-items","type":"application/geo+json"},
+                                     {"rel":"ports","href":f"/collections/{collection_url}/ports","type":"application/geo+json"},
                                      {"rel":"contents","href":f"/collections/{collection_url}/contents","type":"application/json"},
                                      {"rel":"surface","href":f"/collections/{collection_url}/surface","type":"application/json"},
                                      {"rel":"demo","href":"/playground","type":"text/html"}]}
@@ -124,12 +125,13 @@ def handler_for(path: Path):
                             classes=set(query.get("classes",[""])[0].split(",")),sheltered_by=query.get("sheltered_by",[None])[0],cells=cells,zoom=zoom)
                         return _json(self,200,result,"application/geo+json")
                     except (DataTilesError,ValueError) as exc: return _json(self,400,{"code":"InvalidParameterValue","description":str(exc)})
-                if parts == ["collections",collection,"nautical-items"]:
+                if parts in (["collections",collection,"nautical-items"],["collections",collection,"ports"]):
                     query=parse_qs(parsed.query)
                     try:
                         bounds=tuple(float(v) for v in query.get("bbox",[metadata.get("bounds","")])[0].split(","))
                         if len(bounds)!=4: raise ValueError("bbox requires west,south,east,north")
-                        result=stored_vector_features(store,bounds,zoom=int(query["zoom"][0]) if "zoom" in query else None)
+                        variable="ports" if parts[-1]=="ports" else "openseamap_items"
+                        result=stored_vector_features(store,bounds,variable=variable,zoom=int(query["zoom"][0]) if "zoom" in query else None)
                         return _json(self,200,result,"application/geo+json")
                     except (DataTilesError,ValueError) as exc:return _json(self,400,{"code":"InvalidParameterValue","description":str(exc)})
                 if parts == ["collections",collection,"surface"]:
@@ -205,6 +207,7 @@ def handler_for(path: Path):
                         f"/collections/{collection}/surface":{"get":{"parameters":[{"name":"bbox","in":"query","required":True,"schema":{"type":"string"}},{"name":"width","in":"query","schema":{"type":"integer","minimum":8,"maximum":128}},{"name":"height","in":"query","schema":{"type":"integer","minimum":8,"maximum":128}}],"responses":{"200":{"description":"coincident numeric depth and seabed grid"}}}},
                         f"/collections/{collection}/contours":{"get":{"parameters":[{"name":"bbox","in":"query","required":True,"schema":{"type":"string"}},{"name":"interval","in":"query","schema":{"type":"number","default":5}},{"name":"adaptive","in":"query","schema":{"type":"boolean","default":False}}],"responses":{"200":{"description":"live derived GeoJSON contours"}}}},
                         f"/collections/{collection}/nautical-items":{"get":{"parameters":[{"name":"bbox","in":"query","required":True,"schema":{"type":"string"}}],"responses":{"200":{"description":"stored OpenStreetMap seamark vector features"}}}},
+                        f"/collections/{collection}/ports":{"get":{"parameters":[{"name":"bbox","in":"query","required":True,"schema":{"type":"string"}}],"responses":{"200":{"description":"stored unofficial port point features"}}}},
                         f"/collections/{collection}/query":{"get":{"parameters":[{"name":"bbox","in":"query","required":True,"schema":{"type":"string"}},{"name":"min_depth","in":"query","schema":{"type":"number"}},{"name":"max_depth","in":"query","schema":{"type":"number"}},{"name":"classes","in":"query","schema":{"type":"string"}},{"name":"sheltered_by","in":"query","schema":{"type":"string","enum":["nw"]}}],"responses":{"200":{"description":"predicate-selected GeoJSON areas"}}}},
                         f"/collections/{collection}/variables":{"get":{"responses":{"200":{"description":"semantic variable registry"}}}},
                         f"/collections/{collection}/rights":{"get":{"responses":{"200":{"description":"structured rights records"}}}},

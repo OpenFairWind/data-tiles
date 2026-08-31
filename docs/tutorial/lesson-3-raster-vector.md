@@ -4,6 +4,10 @@
 
 You will distinguish coverage and feature representations, understand DataTiles content profiles, inspect mixed content at one spatial address, and switch the standard MBTiles projection between raster and vector slices.
 
+## Importing the bundled ports feature collection
+
+Run `PYTHONPATH=src python utils/geojson2datatiles resources/ports.json ports.datatiles --name "Ports collection" --variable ports --min-zoom 0 --max-zoom 6`, then run `datatiles validate ports.datatiles`. The converter stores the original GeoJSON features in deterministic Web Mercator tile buckets using TMS rows and records the source SHA-256 and conversion provenance. It does not rasterize the points or create map imagery. The supplied records are an unofficial reproducibility fixture, not a navigation dataset.
+
 ## Theory: two complementary data models
 
 A raster matrix samples one or more phenomena over a regular grid. Its topology is implicit: row and column position determine spatial adjacency. This makes rasters efficient for continuous or exhaustively classified fields such as elevation, temperature, probability, and seabed class. Scientific interpretation requires dtype, shape, nodata, unit, scale, offset, grid orientation, CRS, and sampling semantics.

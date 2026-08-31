@@ -2,6 +2,8 @@
 
 This production workflow creates `gaeta-to-maratea.datatiles` for the explicit CRS84 extent `12.85–15.71851° E, 39.99852–41.21408° N`. The playground is downstream: it shows and tests the created DataTiles object but is not a substitute for acquisition, source validation, composition, tiling, provenance, or verification.
 
+The deterministic build also clips `../../resources/ports.json` to these bounds and stores the selected points as a separate tiled-GeoJSON `ports` variable. The evidence bundle includes the checksum-identified source snapshot. These descriptive port records and the playground's anchor symbols are unofficial and MUST NOT be used as a chart, port authority register, or navigation aid.
+
 1. Seven checksum-locked JammeGaia22/MGDS grids at 2, 5, 10, 15, 20, 30, and 40 m horizontal spacing, selected by finest finite cell.
 2. EMODnet DTM 2024 native regional elevation, converted explicitly to positive water depth and used only where JammeGaia22 has no finite cell.
 3. GSHHG 2.3.7 full-resolution L1 polygons as the separate, authoritative land/ocean mask, applied after bathymetry composition.

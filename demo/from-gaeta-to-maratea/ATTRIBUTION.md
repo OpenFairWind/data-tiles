@@ -1,5 +1,9 @@
 # Data attribution and limitations
 
+## Bundled ports demonstration resource
+
+`resources/ports.json` is retained as the checksum-identified input supplied with the ports-import demonstration. Its inclusion is for reproducibility and does not establish authority, completeness, currency, or fitness for navigation. The resulting port slice and browser symbols are unofficial.
+
 ## EMODnet Bathymetry
 
 EMODnet Digital Bathymetry (DTM) 2024, EMODnet Bathymetry Consortium, catalogue identifier `cf51df64-56f9-4a99-b1aa-36b8d7b743a1`, licensed under CC BY 4.0. Water depth is referenced to Lowest Astronomical Tide. **Do not use for navigation.** Individual surveys and composite DTMs retain their own originator metadata in the EMODnet source-reference system.

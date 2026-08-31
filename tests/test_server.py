@@ -47,6 +47,9 @@ def test_analysis_endpoints_and_content_types(service):
     nautical=get_json(root+"/nautical-items?bbox=-20,-60,20,60")[2]
     assert nautical["features"][0]["properties"]["seamark:type"]=="buoy_lateral"
     assert nautical["datatiles:dataSource"].startswith("stored tiled GeoJSON")
+    ports=get_json(root+"/ports?bbox=-20,-60,20,60")[2]
+    assert ports["features"][0]["properties"]["name"]=="Fixture harbour"
+    assert ports["datatiles:variable"]=="ports"
     assert get_json(root+"/query?bbox=-20,-60,20,60&cells=4&min_depth=5&classes=sand")[2]["type"]=="FeatureCollection"
     with urllib.request.urlopen(root+"/profile?start=-10,40&end=10,-40&samples=9&f=svg") as response:
         assert response.headers["Content-Type"].startswith("image/svg+xml") and response.read().startswith(b"<svg")

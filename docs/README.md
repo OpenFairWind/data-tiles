@@ -30,7 +30,7 @@ The [figure provenance register](figures/README.md) identifies the source docume
 | [Replicability](replicability.md) | protocol for independent regions, sources, variables, and implementations |
 | [Getting started](getting-started.md) | concise installation and API tutorial |
 | [Interoperability conventions](conventions.md) | CF-first variable semantics, units, CRS/datum, source identity, dimensions, and portrayal boundaries |
-| [Import utilities](import-utilities.md) | NetCDF/GRIB/Zarr local-or-URL ingestion, semantic mapping, numeric tiling, and provenance |
+| [Import utilities](import-utilities.md) | Dependency-free feature ingestion plus NetCDF/GRIB/Zarr scientific ingestion, deterministic tiling, semantic mapping, and provenance |
 | [Zarr source profile](zarr-source-profile.md) | normative Zarr v2/v3 source identity, checksums, groups, remote stores, FAIR provenance and rights |
 | [References](references.md) | research papers, standards, vocabularies, and source records |
 | [Commercial DRM](drm-and-commercial-licensing.md) | optional protected distribution, ODRL policy, recipient licences |

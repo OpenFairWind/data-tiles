@@ -2,6 +2,8 @@
 
 ## Unreleased — DataTiles Store 0.6.0
 
+- adds dependency-free GeoJSON, CSV, XML, GPX, and newline-delimited GeoJSON feature importers with deterministic WGS 84 tiling, TMS storage, checksums, provenance, validation, and fail-clean output;
+- adds the supplied 1,140-feature `resources/ports.json` collection and integrates the ports inside the Gaeta-to-Maratea demonstration bounds as an unofficial, provenance-linked tiled-GeoJSON slice with client-side nautical portrayal;
 - vendors Bootstrap 5.3.8 CSS/JavaScript for a responsive, locally served PWA shell;
 - adds administrator-managed Store name, tagline, validated/normalized logo upload, and bounded Bootstrap colour, card, background, text, border, radius, shadow, and font settings;
 - adds Bearer-authenticated logo API parity, dynamic branding in the PWA manifest, security validation, regression tests, and updated Store documentation/visual evidence.

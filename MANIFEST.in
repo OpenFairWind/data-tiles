@@ -3,6 +3,8 @@ recursive-include docs *.md
 recursive-include docs/tutorial/examples *.py
 recursive-include demo *.md *.json *.lock Makefile CITATION.cff
 recursive-include tests *.py
+recursive-include utils *datatiles *.py README.md
+recursive-include resources *.json
 recursive-include src/datatiles *.sql *.html
 prune demo/from-gaeta-to-maratea/work
 global-exclude __pycache__ *.py[cod] .DS_Store

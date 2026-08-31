@@ -2,6 +2,8 @@
 
 The playground at `/playground` is a thin OpenLayers 10.10 client over DataTiles analysis resources. It deliberately contains no pre-rendered bathymetric chart. Its colored cells, depth samples, cursor values, profiles, isolines, query matches, shadow relief, textured seabed, and 3D surface are derived after the request from DNT1 arrays. Nautical items are a separate stored tiled-GeoJSON vector coordinate set.
 
+The ports layer reads the separate `ports` tiled-GeoJSON slice stored in the generated object. It clusters nearby points, adds close-zoom labels, supports property inspection, and draws an original anchor-in-circle browser symbol. This is a reproducible client-side portrayal of bundled records, not stored imagery or an official hydrographic symbol. Neither the records nor their portrayal are certified for navigation.
+
 The map demonstrates several independent operations. Pointer movement requests coincident depth, seabed class, and optional north-west shelter values with tile/pixel evidence. A two-click line requests the depth profile and colors it by seabed class. Map movement requests marching-squares contours, a depth/class surface, dynamic shadow relief, independently switchable depth color and classification texture, smart depth labels, a 3D mesh, and stored nautical vectors for the current WGS 84 extent. The query control evaluates a conjunction such as `5 < depth < 10`, `class ∈ {sand,mud}`, and—when the variable exists—`northwest_wind_shelter = true`, returning analysis-cell polygons as GeoJSON.
 
 ## Independent map layers

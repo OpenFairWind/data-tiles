@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+"""Convert GeoJSON features to a DataTiles tiled-GeoJSON slice."""
+import argparse, json
+from _vector_import import add_common_arguments, normalize_features, run
+
+p=argparse.ArgumentParser(prog="geojson2datatiles",description=__doc__); add_common_arguments(p)
+def load(a): return normalize_features(json.loads(a.input.read_text(encoding="utf-8")))
+if __name__ == "__main__": raise SystemExit(run(p,load))

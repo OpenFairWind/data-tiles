@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+"""Convert CSV rows containing latitude and longitude columns to point DataTiles."""
+import argparse, csv
+from _vector_import import add_common_arguments, run
+
+p=argparse.ArgumentParser(prog="csv2datatiles",description=__doc__); add_common_arguments(p)
+p.add_argument("--latitude",help="latitude column name (auto-detected by default)"); p.add_argument("--longitude",help="longitude column name (auto-detected by default)")
+p.add_argument("--delimiter",help="single-character delimiter; otherwise CSV sniffing is used")
+def load(a):
+    with a.input.open(encoding="utf-8-sig",newline="") as stream:
+        sample=stream.read(8192); stream.seek(0)
+        if a.delimiter and len(a.delimiter)!=1: raise ValueError("--delimiter must be one character")
+        dialect=csv.Sniffer().sniff(sample,delimiters=",;\t|") if not a.delimiter else csv.excel
+        rows=csv.DictReader(stream,dialect=dialect,**({"delimiter":a.delimiter} if a.delimiter else {}))
+        names=rows.fieldnames or []; folded={n.casefold():n for n in names}
+        lat=a.latitude or next((folded[x] for x in ("latitude","lat") if x in folded),None)
+        lon=a.longitude or next((folded[x] for x in ("longitude","lon","lng","long") if x in folded),None)
+        if not lat or not lon or lat not in names or lon not in names: raise ValueError("CSV must contain latitude and longitude columns (or use --latitude/--longitude)")
+        result=[]
+        for number,row in enumerate(rows,2):
+            try: coordinates=[float(row[lon]),float(row[lat])]
+            except (TypeError,ValueError) as exc: raise ValueError(f"row {number} has invalid latitude/longitude") from exc
+            result.append({"type":"Feature","geometry":{"type":"Point","coordinates":coordinates},"properties":{k:v for k,v in row.items() if k not in (lat,lon)}})
+        return result
+if __name__ == "__main__": raise SystemExit(run(p,load))

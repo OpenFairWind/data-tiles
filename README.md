@@ -42,6 +42,8 @@ Version 0.10 adds conservative physical-table MBTiles fallback, a self-sufficien
 
 Optional import utilities under `utils/` convert local or URL-identified NetCDF, GRIB2, and Zarr rectilinear grids into semantic DNT1 DataTiles. They preserve CF Standard Names when present, add GRIB2 crosswalk identifiers when available, retain source identity plus format-appropriate checksum provenance, and never pre-render scientific arrays as imagery. Install with `python -m pip install -e '.[utils]'`; see `docs/import-utilities.md`.
 
+Dependency-free `geojson2datatiles`, `csv2datatiles`, `xml2datatiles`, `gpx2datatiles`, and `ndjson2datatiles` utilities convert feature sources to tiled GeoJSON while validating coordinates and recording the immutable source checksum and import provenance. The bundled `resources/ports.json` collection is an explicit, unofficial demonstration input and MUST NOT be treated as an authoritative port or navigation dataset.
+
 ## Raster and vector content
 
 - Numeric raster matrices use the dependency-free DNT1 encoding and retain dtype, shape, byte order, nodata, scale, offset, unit, and compression.

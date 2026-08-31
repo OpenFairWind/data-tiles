@@ -1,4 +1,22 @@
-# NetCDF, GRIB, and Zarr import utilities
+# DataTiles import utilities
+
+## Dependency-free feature importers
+
+The executable utilities `geojson2datatiles`, `csv2datatiles`, `xml2datatiles`, `gpx2datatiles`, and `ndjson2datatiles` under `utils/` translate feature records into deterministic tiled GeoJSON. They validate finite WGS 84 longitude/latitude positions, convert XYZ addressing to stored TMS rows, checksum the immutable input bytes, record the conversion activity and source entity, and remove incomplete output after failure. These converters preserve vector features; they do not rasterize or portray them.
+
+All feature importers accept `INPUT OUTPUT`, `--min-zoom`, `--max-zoom`, `--name`, `--variable`, and `--force`. CSV and generic XML inputs require identifiable latitude and longitude fields. GPX waypoint and track geometry is retained, and newline-delimited GeoJSON accepts one feature or geometry per non-empty line.
+
+For example, the supplied, non-authoritative ports collection can be converted and validated without optional dependencies:
+
+```bash
+PYTHONPATH=src python utils/geojson2datatiles resources/ports.json ports.datatiles \
+  --name "Ports collection" --variable ports --min-zoom 0 --max-zoom 6
+datatiles validate ports.datatiles
+```
+
+`resources/ports.json` contains 1,140 point features. Its repository snapshot has SHA-256 `519aacd40928770c72ce9b9d714776b4689c1352ec56f5a5b3ee52b60982fec9`. It is included solely to reproduce the import and client-side portrayal demonstrations and is not an official chart, port register, or navigation aid.
+
+## NetCDF, GRIB, and Zarr scientific importers
 
 DataTiles treats NetCDF, GRIB, and Zarr as **source encodings**, not as the semantic identity of a quantity. The utilities under `utils/` translate those encodings into the DataTiles multidimensional model while retaining source identity, variable semantics, units, non-spatial coordinates, CRS and provenance.
 
