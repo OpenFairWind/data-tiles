@@ -1,5 +1,11 @@
 # Architecture
 
+## Online delivery boundary
+
+The optional online stack is deliberately outside the dependency-free container core. `server/app.py` opens released DataTiles containers read-only and exposes two representations of one canonical selection: unchanged stored scientific bytes and a deterministic display portrayal. The latter is derived on request from DNT1 header semantics and declared palette parameters, cached by source-release and algorithm identity, and never written into the container as if it were scientific evidence.
+
+Gunicorn supplies process-level parallelism; each process has a bounded thread executor for SQLite reads, defensive DNT1 decoding, NumPy palette interpolation, image encoding, and cache I/O. Admission control bounds uncached work. Browser adapters and the Store consume TileJSON discovery rather than infer layer semantics. A reverse proxy or CDN is an operational tier, not part of the scientific data model, and authorization for protected products belongs at or before that tier.
+
 ![DataTiles information model](figures/datatiles-information-model.svg)
 
 *Figure 1. Conceptual addressing and compatibility projection. The diagram is explanatory; the normative relational structure and canonicalization algorithm are defined in `specification.md`.*

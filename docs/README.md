@@ -21,6 +21,7 @@ The [figure provenance register](figures/README.md) identifies the source docume
 | [Numeric tiles](numeric-tiles.md) | DNT1 encoding and physical-value semantics |
 | [Vector tiles](vector-tiles.md) | multidimensional MVT/GeoJSON profiles and MBTiles projection |
 | [HTTP/OGC API](ogc-api.md) | resource model and interoperability scope |
+| [Online Delivery](online-delivery.md) | optional scientific and derived-portrayal HTTP profile, discovery, caching, concurrency, observability, and reference-server behavior |
 | [Playground](playground.md) | OpenLayers scientific operations and limitations |
 | [DataTiles Store PWA](store-pwa.md) | Flask/SQLAlchemy institutional catalog, metadata search, role-based access, interactive preview, licence/safety acceptance, API-first CRUD, and authorized downloads |
 | [DataTiles Store API v1](store-api.md) | Bearer authentication, agreement workflow, catalog/search, preview/download, managers CRUD, identity administration, and audit endpoints |

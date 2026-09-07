@@ -4,7 +4,7 @@
 
 The format keeps the required MBTiles `metadata` and four-column `tiles` interfaces. `tiles` is a view exposing one selected multidimensional slice, so an ordinary MBTiles reader can consume a coherent raster or vector slice without understanding the extension. For conservative OpenLayers/MBTiles adapters, `export-mbtiles` materializes that slice into a standalone file with physical standard tables and no extension objects. DataTiles-aware readers can discover every slice, its typed coordinates, raster/vector content type, IETF media type, encoding, schema, CRS, and provenance.
 
-The optional [Online Delivery profile](docs/online-delivery.md) publishes the same canonical scientific selection either as its DNT1/vector payload for client-side portrayal or as an explicitly derived PNG/WebP portrayal. The [reference server](server/README.md) and reusable [Leaflet, OpenLayers, and Google Maps adapters](plugins/README.md) support mixed rendering modes; the Store may use served portrayals for visual discovery without presenting them as scientific values.
+The optional [Online Delivery profile](docs/online-delivery.md) publishes the same canonical scientific selection either as its unchanged scientific payload for client-side portrayal or as an explicitly derived PNG/WebP portrayal. The production-oriented [reference server](server/README.md) provides TileJSON discovery, layer/dimension/time/legend resources, conditional requests, deterministic disk caching, bounded concurrent rendering, health/readiness probes, and Prometheus-text metrics. Reusable [Leaflet, OpenLayers, and Google Maps adapters](plugins/README.md) support mixed rendering modes; the Store may use served portrayals for visual discovery without presenting them as scientific values.
 
 ![DataTiles information model](docs/figures/datatiles-information-model.svg)
 
@@ -37,6 +37,23 @@ datatiles-serve weather.datatiles --port 8080
 ```
 
 The spatial row follows MBTiles/TMS convention. Use `--xyz` on `put` and `get` to convert an XYZ row.
+
+## Online server quick start
+
+The standalone online server is optional and requires the `server` extra. It reads containers without modifying them; XYZ conversion occurs only at its HTTP interface, and server imagery is a reproducible derivation from DNT1 values rather than a stored image-tile substitute.
+
+```bash
+python -m pip install -e '.[server]'
+cp server/layers.example.json server/layers.json
+mkdir -p server/data server/cache
+cp /path/to/weather.datatiles server/data/
+DATATILES_DATA_DIR="$PWD/server/data" \
+DATATILES_LAYERS="$PWD/server/layers.json" \
+DATATILES_CACHE_DIR="$PWD/server/cache" \
+gunicorn -c server/gunicorn.conf.py server.app:app
+```
+
+Open `http://localhost:8080/maps` for layer discovery, `http://localhost:8080/docs` for generated API documentation, or `http://localhost:8080/healthz` for the liveness probe. Production deployments SHOULD set `DATATILES_PUBLIC_BASE`, restrict `DATATILES_CORS_ORIGINS`, mount released datasets read-only, and put an HTTPS reverse proxy or CDN in front of the service. See the [server operations guide](server/README.md) for layer configuration, all routes, concurrency controls, cache semantics, limitations, Docker deployment, and load testing.
 
 Version 0.10 adds conservative physical-table MBTiles fallback, a self-sufficient implementation specification, and an onboard edge-intelligence manifesto/white paper. It also includes mixed raster/vector content profiles, a tested five-lesson zero-to-hero curriculum, FAIR-by-design publication profile, OpenLayers scientific playground, comprehensive quality suite, protected CI/CD release path, interval axes, PROV-inspired provenance, scientific CRS records, bounded numeric-array decoding, OpenAPI description, and read-only OGC-style access.
 

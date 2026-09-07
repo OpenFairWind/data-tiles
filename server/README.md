@@ -9,6 +9,54 @@ This is the reference implementation of the DataTiles Online Delivery profile. I
 
 Dimension names are query parameters on both endpoints. A published layer may fix some dimensions in `layers.json`; request parameters add or override dynamic dimensions such as `valid_time`, pressure, ensemble member, or scenario.
 
+The service reads containers without modifying them. Scientific responses preserve stored bytes and content metadata. PNG/WebP responses are explicitly derived portrayals: the server decodes DNT1, applies declared scale, offset, nodata, and palette semantics, and caches the result without writing it into the source container.
+
+## HTTP resources
+
+| Resource | Purpose |
+|---|---|
+| `GET /` | service version, render-thread and admission limits, and principal links |
+| `GET /healthz` | process liveness |
+| `GET /readyz` | layer-file existence, JSON syntax, and top-level-object readiness |
+| `GET /metrics` | process-local Prometheus text metrics |
+| `GET /api/datasets` | sorted identifiers of `.datatiles`, `.mbtiles`, and `.sqlite` files |
+| `GET /api/datasets/{dataset}/tiles/{z}/{x}/{y}` | exact stored scientific payload selected by query dimensions |
+| `GET /maps` | published layers, excluding the full portrayal definition |
+| `GET /maps/{layer}` | complete layer configuration plus portrayal SHA-256 |
+| `GET /maps/{layer}/dimensions` | declared dimensions and `fixed_dimensions` |
+| `GET /maps/{layer}/times` | declared values for the `valid_time` axis |
+| `GET /maps/{layer}/legend.json` | unit, palette, and portrayal SHA-256 |
+| `GET /maps/{layer}/legend.png` | 256 × 24 interpolated palette strip |
+| `GET /maps/{layer}/tilejson.json` | TileJSON 3.0 with both representation templates |
+| `GET /maps/{layer}/portrayal.json` | deterministic portrayal recipe |
+| `GET /maps/{layer}/{z}/{x}/{y}.{format}` | derived XYZ PNG/WebP portrayal |
+
+FastAPI publishes the generated schema at `/openapi.json` and interactive documentation at `/docs`. The health probe does not validate configuration; readiness parses `layers.json` but does not open every container or render test tiles.
+
+Scientific responses have a content SHA-256 ETag and a 300-second public cache lifetime. Portrayals have an identity ETag: immutable `dataset_release` values receive `public, max-age=31536000, immutable`, while `mutable`, `latest`, or null receive `public, max-age=60`. Matching `If-None-Match` requests return `304`.
+
+## Layer configuration
+
+`DATATILES_LAYERS` names a UTF-8 JSON object keyed by public layer id. Each entry requires a `dataset` resolvable below `DATATILES_DATA_DIR` and, for current server portrayal, a scalar palette. A complete example is supplied in `server/layers.example.json`.
+
+| Member | Meaning |
+|---|---|
+| `dataset` | container basename or filename; path components are discarded defensively |
+| `dataset_release` | cache identity; use a stable immutable release id, not `latest`, for immutable caching |
+| `title` | TileJSON display name |
+| `dimensions` | compact fixed values or object-valued exposed-axis definitions |
+| `fixed_dimensions` | additional fixed coordinates |
+| `source` | optional fixed source coordinates; `dataset` and `variables` are not coordinates |
+| `portrayal` | deterministic recipe; current renderer requires numeric `palette` stops |
+| `formats` | allowed `png` and/or `webp` output formats |
+| `minzoom`, `maxzoom`, `bounds` | TileJSON discovery limits; bounds use west, south, east, north |
+| `catalog` | Store catalogue eligibility, priority, and deterministic preview query |
+| `tileSize`, `resampling` | declared output parameters included in cache identity |
+
+A compact dimension such as `"variable": "air_temperature"` is fixed. To expose an axis, use an object definition such as `"valid_time": {"exposed": true, "values": [...]}`. Object-valued definitions with `exposed: false` cannot be supplied by a caller. When exposed axes are declared, unknown query dimensions produce `400`. Exact coordinate-set lookup remains authoritative: the server does not select nearest values, interpolate dimensions, or invent defaults beyond those explicitly configured.
+
+Query keys `format`, `representation`, and `style` are reserved and are not passed as scientific dimensions. Tile paths use XYZ rows at the HTTP boundary; DataTiles retains TMS rows internally.
+
 ## High-performance execution model
 
 The reference server is designed for demanding interactive-map workloads. Production execution uses **Gunicorn with multiple Uvicorn worker processes**, while each worker owns a **bounded rendering thread pool**. This hybrid model is deliberate:
@@ -60,6 +108,24 @@ uvicorn server.app:app --host 0.0.0.0 --port 8080
 ```
 
 Copy `layers.example.json` to `layers.json` and place a DataTiles container such as `weather.datatiles` in `server/data/`.
+
+### Environment reference
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DATATILES_DATA_DIR` | `/data` | read-only dataset directory |
+| `DATATILES_LAYERS` | `/config/layers.json` | read-only layer configuration |
+| `DATATILES_CACHE_DIR` | `/cache` | writable derived-portrayal cache |
+| `DATATILES_PUBLIC_BASE` | request base URL | externally visible absolute base used in TileJSON |
+| `DATATILES_CORS_ORIGINS` | `*` | comma-separated exact allowed origins |
+| `DATATILES_PORT` | `8080` | Gunicorn bind port |
+| `DATATILES_WORKERS` | bounded CPU-count formula | Gunicorn worker processes |
+| `DATATILES_RENDER_THREADS` | bounded CPU-count formula | rendering threads in each worker |
+| `DATATILES_MAX_INFLIGHT_RENDERS` | twice render threads | admitted uncached renders in each worker; never below thread count |
+| `DATATILES_KEEPALIVE` | `5` | Gunicorn keep-alive seconds |
+| `DATATILES_REQUEST_TIMEOUT` | `60` | Gunicorn request timeout seconds |
+| `DATATILES_GRACEFUL_TIMEOUT` | `30` | worker graceful-shutdown timeout seconds |
+| `DATATILES_ACCESS_LOG` | `-` | Gunicorn access-log destination; `-` is standard output |
 
 ## Docker
 
@@ -119,6 +185,27 @@ Tune worker/thread counts from measured p50/p95/p99 latency, throughput, CPU uti
 Use immutable dataset releases where possible, mount data read-only, persist `/cache`, configure a concrete `DATATILES_PUBLIC_BASE`, and restrict `DATATILES_CORS_ORIGINS`. A CDN/reverse proxy may cache `/maps/...` aggressively because cache identity includes the layer, dimensions, portrayal, tile coordinate, and format. Dynamic aliases such as `latest` should be resolved outside the immutable cache namespace or assigned short TTLs.
 
 For a public high-demand service, place a reverse proxy/CDN in front of the application, enable HTTP/2 or HTTP/3 there, terminate TLS at that layer, and let the proxy serve cache hits without reaching Python. The application remains responsible for canonical tile identity and deterministic rendering.
+
+CORS controls browser permission, not authentication. The reference server has no user, licence, agreement, payment, or entitlement enforcement. Protected datasets require an authorization gateway or private network before these routes. Restrict `/metrics` if process and workload information is sensitive. Do not expose mutable source files under immutable release identifiers: replacing bytes without changing `dataset_release` can leave semantically stale cached portrayals.
+
+The emitted metrics are `datatiles_requests`, `datatiles_renders`, `datatiles_cache_hits`, `datatiles_cache_misses`, `datatiles_rejections`, `datatiles_render_seconds`, `datatiles_inflight`, and `datatiles_worker_info{pid=...}`. They are maintained independently in each worker process; use proxy metrics or an explicit multiprocess collector when aggregate totals are required.
+
+## Current portrayal scope and failure behavior
+
+The scientific endpoint can return any correctly declared stored content profile. Server portrayal currently requires DNT1 with a two-dimensional shape, a supported signed/unsigned 8/16/32/64-bit integer or 32/64-bit float dtype, explicit little/big byte order, `none` or `zlib` compression, and no more than 16,777,216 elements. Header JSON is bounded to 1 MiB and unknown header fields are rejected. The renderer applies scale and offset, makes nodata and non-finite cells transparent, linearly interpolates `#RRGGBB` or `#RRGGBBAA` palette stops, and writes PNG or lossless WebP.
+
+It does not currently portray vectors, reproject or resample arrays, classify values, combine variables, or derive nearest dimension selections. Unsupported payloads return `415`; malformed inputs or portrayals return `422`; absent resources return `404`; disallowed formats return `406`; excess array size returns `413`; saturated render admission returns `503` with `Retry-After: 1`. New scientific derivations must declare their input variables, algorithms, parameters, CRS, and provenance before implementation.
+
+## Verification
+
+From the repository root, run:
+
+```bash
+python -m compileall src tests server
+python -m pytest server/tests tests/test_documentation.py
+```
+
+The release workflow additionally builds and starts the image as a non-root user, checks health, readiness, and map discovery, validates browser modules, and exercises both Docker Compose models. See `docs/testing-and-release.md`.
 
 ## DataTiles Store catalogue integration
 

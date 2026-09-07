@@ -1,5 +1,7 @@
 # Getting started
 
+For network publication after creating and validating a container, install `.[server]` and follow the [Online server quick start](../README.md#online-server-quick-start). The server reads scientific tiles unchanged at `/api/datasets/{dataset}/tiles/{z}/{x}/{y}` and derives configured PNG/WebP portrayals at `/maps/{layer}/{z}/{x}/{y}.{format}`. It does not convert scientific arrays into stored image tiles. Full configuration and deployment guidance is in the [reference server guide](../server/README.md).
+
 Install Python 3.10 or later and run `python -m pip install -e .`.
 
 Create a file and define its axes before inserting tiles:

@@ -13,6 +13,7 @@
 - adds an atomic `meteouniparthenope2datatiles.py` importer for local, HTTP(S), and OPeNDAP NetCDF sources, time-partitioned `.mbtiles` output, multi-model/domain slices, explicit nearest-neighbour provenance, checksums, and numeric DNT1 storage, with dedicated CI utility testing and inclusion in release component archives.
 - fixes server and Store CI/runtime dependency declarations for Starlette's `httpx2` test client and Authlib's Requests integration.
 - aligns the Store image's default database, catalog, and branding paths with its writable non-root `/data` directories and adds a container-default regression check.
+- revises the main, architecture, getting-started, profile, operations, examples, and documentation-index material for the Online Delivery server, including its complete endpoint surface, layer configuration, exact-dimension behavior, DNT1 portrayal limits, cache semantics, concurrency, observability, security, deployment, and scientific boundaries.
 
 ## 0.20.0 — 2026-08-29
 
