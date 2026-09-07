@@ -4,6 +4,10 @@ The DataTiles Store is the optional Flask/SQLAlchemy and Bootstrap 5 PWA for ins
 
 When `DATATILES_STORE_TILE_SERVER_URL` is configured, the Store discovers eligible Online Delivery layers for lightweight catalogue thumbnails and interactive detail maps. The scientific DNT1 preview remains available as a distinct client-rendered inspection mode, subject to the Store's agreement and entitlement gates.
 
+![DataTiles Store catalogue](docs/images/store-catalog.jpg)
+
+*Executed authenticated catalogue over a generated revision-8 fixture. Screenshot provenance and additional scientific-preview, agreement, and administrator-configuration views are maintained in the [Store visual register](docs/visuals.md).*
+
 See [`docs/index.md`](docs/index.md) for the complete manual, also rendered in the PWA Help section. Container deployment is provided through [`Dockerfile`](Dockerfile), [`docker-compose.yml`](docker-compose.yml), and the [Docker/Compose operations guide](docs/container-deployment.md).
 
 ## Quick start

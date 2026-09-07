@@ -10,6 +10,22 @@ The optional [Online Delivery profile](docs/online-delivery.md) publishes the sa
 
 *Figure 1. A spatial MBTiles address and an unordered canonical set of typed scientific coordinates resolve to an explicitly declared payload. Only a compatible selected slice is projected through the conventional MBTiles interface; scientific arrays are not silently presented as imagery.*
 
+## Executed reference interfaces
+
+The following screenshots are presentation evidence from executed local reference interfaces. They do not replace container checksums, source locks, API responses, provenance records, or automated tests, and none is suitable for navigation.
+
+![Full OpenLayers scientific playground](docs/images/demo/playground-overview.jpg)
+
+*Figure 2. Full OpenLayers client demonstration over the Gaeta-to-Maratea container. Depth colour, seabed classification, relief, and stored nautical vectors remain distinct client-side or request-time products; see the [capture provenance](docs/images/demo/README.md).*
+
+![DataTiles Store catalogue](store/docs/images/store-catalog.jpg)
+
+*Figure 3. Authenticated DataTiles Store catalogue populated from a revision-8 fixture. The Store indexes metadata separately from immutable DataTiles files; see the [Store visual provenance](store/docs/visuals.md).*
+
+![OpenLayers client of the Online Delivery server](docs/images/server/openlayers-online-delivery.jpg)
+
+*Figure 4. OpenLayers consuming live XYZ WebP portrayals from the reference Online Delivery server. The pixels were derived from stored DNT1 bathymetry using the declared palette and were not stored as scientific tiles; see the [server-client capture provenance](docs/images/server/README.md).*
+
 ## Coordinate model
 
 ```text

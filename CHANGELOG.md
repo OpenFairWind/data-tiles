@@ -14,6 +14,7 @@
 - fixes server and Store CI/runtime dependency declarations for Starlette's `httpx2` test client and Authlib's Requests integration.
 - aligns the Store image's default database, catalog, and branding paths with its writable non-root `/data` directories and adds a container-default regression check.
 - revises the main, architecture, getting-started, profile, operations, examples, and documentation-index material for the Online Delivery server, including its complete endpoint surface, layer configuration, exact-dimension behavior, DNT1 portrayal limits, cache semantics, concurrency, observability, security, deployment, and scientific boundaries.
+- adds a cross-document visual tour using the registered full scientific-playground and Store captures plus a newly executed OpenLayers Online Delivery client screenshot, with checksum-identified inputs, portrayal parameters, scientific boundaries, and regression coverage for the visual register.
 
 ## 0.20.0 — 2026-08-29
 

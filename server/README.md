@@ -11,6 +11,10 @@ Dimension names are query parameters on both endpoints. A published layer may fi
 
 The service reads containers without modifying them. Scientific responses preserve stored bytes and content metadata. PNG/WebP responses are explicitly derived portrayals: the server decodes DNT1, applies declared scale, offset, nodata, and palette semantics, and caches the result without writing it into the source container.
 
+![OpenLayers Online Delivery client](../docs/images/server/openlayers-online-delivery.jpg)
+
+*Executed reference client over the Gaeta-to-Maratea DNT1 bathymetry release. The OpenLayers map requested live XYZ WebP portrayals from this server; screenshot identity, configuration, inputs, and limitations are recorded in the [capture provenance register](../docs/images/server/README.md).*
+
 ## HTTP resources
 
 | Resource | Purpose |

@@ -4,6 +4,8 @@ The documentation is organized by authority and purpose. `specification.md` is n
 
 The [figure provenance register](figures/README.md) identifies the source documents, construction method, parameters, and interpretive scope of each explanatory SVG.
 
+Executed UI evidence is registered separately for the [full scientific playground](images/demo/README.md), [DataTiles Store](../store/docs/visuals.md), and [Online Delivery server client](images/server/README.md). Screenshots are explanatory presentation artifacts, not scientific payloads or conformance evidence.
+
 | Document | Purpose |
 |---|---|
 | [Specification](specification.md) | normative container, dimensions, CRS, provenance, numeric payload, FAIR metadata, validation, and HTTP profile |

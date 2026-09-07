@@ -8,6 +8,10 @@ The Online Delivery profile adds network publication without changing the scient
 
 **Server rendering** resolves the same scientific tile, applies a deterministic portrayal recipe, and returns a display representation such as PNG/WebP or a derived vector portrayal.
 
+![OpenLayers client receiving server-derived bathymetry](images/server/openlayers-online-delivery.jpg)
+
+*Figure 1. Executed OpenLayers client receiving XYZ WebP tiles derived by the reference server from the Gaeta-to-Maratea DNT1 bathymetry coordinate set. The surrounding blank area lies outside the declared dataset extent. The screenshot is registered with its [capture inputs and limitations](images/server/README.md).*
+
 A service SHOULD publish both modes when feasible. Rendering mode is a delivery capability, not a dataset property; clients MAY mix modes among layers or switch mode at runtime.
 
 ## Discovery

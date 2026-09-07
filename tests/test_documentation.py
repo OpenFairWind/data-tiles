@@ -111,6 +111,18 @@ def test_store_figures_and_screenshots_are_registered():
         assert name in register
 
 
+def test_online_server_client_screenshot_is_registered():
+    images=ROOT/"docs/images/server"
+    name="openlayers-online-delivery.jpg"
+    payload=(images/name).read_bytes()
+    register=(images/"README.md").read_text()
+    assert payload.startswith(b"\xff\xd8\xff")
+    assert name in register
+    assert "server-derived portrayal" in register
+    assert "not for navigation" in register
+    assert f"docs/images/server/{name}" in (ROOT/"README.md").read_text()
+
+
 def test_specification_is_self_sufficient_and_documents_fallback():
     text=(ROOT/"docs/specification.md").read_text()
     required=("Normative relational schema","Coordinate identity algorithm","DNT1 numeric-array encoding",
