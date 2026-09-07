@@ -1,0 +1,21 @@
+services:
+  datatiles-server:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      DATATILES_CORS_ORIGINS: "*"
+      DATATILES_PUBLIC_BASE: "http://localhost:8080"
+      # Tune to the CPU/memory limits of this container.
+      DATATILES_WORKERS: "4"
+      DATATILES_RENDER_THREADS: "4"
+      DATATILES_MAX_INFLIGHT_RENDERS: "8"
+      DATATILES_KEEPALIVE: "5"
+      DATATILES_REQUEST_TIMEOUT: "60"
+    volumes:
+      - ./data:/data:ro
+      - ./layers.json:/config/layers.json:ro
+      - ./cache:/cache
+    restart: unless-stopped

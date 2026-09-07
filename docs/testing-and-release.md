@@ -17,20 +17,22 @@ The suite covers storage and MBTiles views, physical-table MBTiles fallback and 
 
 ## CI workflow
 
-`.github/workflows/ci.yml` executes on pull requests and pushes to `main`. It applies four required gates:
+`.github/workflows/ci.yml` executes on pull requests and pushes to `main`. It applies six required gates:
 
 1. The complete suite runs on Python 3.10, 3.11, 3.12, and 3.13 with branch coverage.
-2. Node.js parses the playground program and verifies its live-rendering contracts.
-3. PEP 517 builds source and wheel distributions, Twine validates metadata, and a fresh environment installs and invokes the wheel.
-4. The controlled scientific fixture is rebuilt twice and checked for byte identity.
+2. Node.js parses the playground and every reusable Leaflet, OpenLayers, Google Maps, and shared-client module, then verifies live-rendering contracts.
+3. The optional high-concurrency server and Store are installed with their declared extras, compiled, and tested, including discovery, portrayal, caching, conditional requests, and served-preview behavior.
+4. Both Docker Compose models are validated; the reference server and Store images are built, checked for non-root runtime identities, started, and queried through server health/readiness/map discovery and Store health endpoints.
+5. PEP 517 builds source and wheel distributions, Twine validates metadata, and a fresh environment installs and invokes the wheel.
+6. The controlled scientific fixture is rebuilt twice and checked for byte identity.
 
 The terminal `ci-success` job depends on every gate and is the recommended branch-protection status check. Configure `main` to require pull requests and this check, dismiss stale approvals, require conversation resolution, prohibit force pushes, and restrict deletion.
 
 ## CD and release protocol
 
-`.github/workflows/release.yml` builds from a semantic version tag `vX.Y.Z`. It rejects a tag differing from `datatiles.__version__` or lacking the corresponding `CHANGELOG.md` heading. It reruns tests, builds distributions, checks metadata, records SHA-256 checksums, and retains the products as an artifact.
+`.github/workflows/release.yml` builds from a semantic version tag `vX.Y.Z`. It rejects a tag differing from `datatiles.__version__` or lacking the corresponding `CHANGELOG.md` heading. It reruns the core, server, Store, browser-module, Compose, and container-runtime gates; builds Python distributions and a checksummed component bundle containing the plugins, server, Store, and profile documentation; publishes tagged server and Store images to GitHub Container Registry; and retains the products as release artifacts.
 
-For a tag release, GitHub produces build-provenance attestations, creates a GitHub Release, and publishes through PyPI Trusted Publishing. No API token is stored. A manual run builds and validates artifacts; PyPI delivery occurs only when the operator enables its input.
+For a tag release, GitHub produces build-provenance attestations, publishes the two container images, creates a GitHub Release, and publishes only the isolated wheel and source distribution through PyPI Trusted Publishing. No API token is stored. A manual run builds and validates artifacts; PyPI delivery occurs only when the operator enables its input.
 
 Repository administrators must create a protected GitHub environment named `pypi`, preferably with an authorized reviewer and protected-tag restriction, and register this repository plus `release.yml` as a PyPI Trusted Publisher. Protect tags matching `v*`. If cryptographically signed tags are required, enforce them using an organization ruleset or approved verifier with a pinned trust root; the workflow does not infer trust merely from a tag name.
 

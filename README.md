@@ -4,6 +4,8 @@
 
 The format keeps the required MBTiles `metadata` and four-column `tiles` interfaces. `tiles` is a view exposing one selected multidimensional slice, so an ordinary MBTiles reader can consume a coherent raster or vector slice without understanding the extension. For conservative OpenLayers/MBTiles adapters, `export-mbtiles` materializes that slice into a standalone file with physical standard tables and no extension objects. DataTiles-aware readers can discover every slice, its typed coordinates, raster/vector content type, IETF media type, encoding, schema, CRS, and provenance.
 
+The optional [Online Delivery profile](docs/online-delivery.md) publishes the same canonical scientific selection either as its DNT1/vector payload for client-side portrayal or as an explicitly derived PNG/WebP portrayal. The [reference server](server/README.md) and reusable [Leaflet, OpenLayers, and Google Maps adapters](plugins/README.md) support mixed rendering modes; the Store may use served portrayals for visual discovery without presenting them as scientific values.
+
 ![DataTiles information model](docs/figures/datatiles-information-model.svg)
 
 *Figure 1. A spatial MBTiles address and an unordered canonical set of typed scientific coordinates resolve to an explicitly declared payload. Only a compatible selected slice is projected through the conventional MBTiles interface; scientific arrays are not silently presented as imagery.*

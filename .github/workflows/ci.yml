@@ -50,7 +50,7 @@ jobs:
           cache: pip
       - name: Install test environment
         run: python -m pip install --upgrade pip && python -m pip install -e '.[demo,test]'
-      - name: Parse playground JavaScript
+      - name: Parse playground and plugin JavaScript
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -62,8 +62,64 @@ jobs:
           Path("/tmp/datatiles-playground.js").write_text("\n".join(scripts), encoding="utf-8")
           PY
           node --check /tmp/datatiles-playground.js
+          node --check plugins/common/datatiles-client.js
+          node --check plugins/leaflet/datatiles-leaflet.js
+          node --check plugins/openlayers/datatiles-openlayers.js
+          node --check plugins/google-maps/datatiles-google-maps.js
       - name: Verify live-rendering contracts
         run: python -m pytest tests/test_profile.py tests/test_surface.py tests/test_documentation.py
+
+  online-delivery:
+    name: Online server and Store
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install server and Store test environments
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[server,test]'
+          python -m pip install -e './store[test]'
+      - name: Compile optional component sources
+        run: python -m compileall -q server store
+      - name: Test server and Store contracts
+        run: python -m pytest -q server/tests store/tests
+
+  containers:
+    name: Server container and Compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate Compose model
+        run: |
+          cp server/layers.example.json server/layers.json
+          mkdir -p server/data server/cache
+          docker compose --file server/docker-compose.yml config --quiet
+          DATATILES_STORE_SECRET_KEY=ci-only-secret DATATILES_STORE_ADMIN_PASSWORD=ci-only-password docker compose --file store/docker-compose.yml config --quiet
+      - name: Build server and Store images
+        run: |
+          docker build --tag datatiles-server:ci --file server/Dockerfile .
+          docker build --tag datatiles-store:ci store
+      - name: Verify non-root runtimes and health endpoints
+        run: |
+          server_id=$(docker run --detach --publish 127.0.0.1:8080:8080 --env DATATILES_WORKERS=2 datatiles-server:ci)
+          store_id=$(docker run --detach --publish 127.0.0.1:8081:8080 --env DATATILES_STORE_SECRET_KEY=ci-only-secret --env DATATILES_STORE_ADMIN_PASSWORD=ci-only-password datatiles-store:ci)
+          trap 'docker logs "$server_id"; docker logs "$store_id"; docker rm --force "$server_id" "$store_id"' EXIT
+          test "$(docker inspect --format '{{.Config.User}}' "$server_id")" = datatiles
+          test "$(docker inspect --format '{{.Config.User}}' "$store_id")" = datatiles
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8080/healthz >/dev/null \
+              && curl --fail --silent http://127.0.0.1:8080/readyz >/dev/null \
+              && curl --fail --silent http://127.0.0.1:8080/maps >/dev/null \
+              && curl --fail --silent http://127.0.0.1:8081/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
 
   package:
     name: Package
@@ -108,17 +164,21 @@ jobs:
   ci-success:
     name: CI success
     if: always()
-    needs: [tests, browser-contracts, package, reproducibility]
+    needs: [tests, browser-contracts, online-delivery, containers, package, reproducibility]
     runs-on: ubuntu-latest
     steps:
       - name: Require every quality gate
         env:
           TESTS_RESULT: ${{ needs.tests.result }}
           BROWSER_RESULT: ${{ needs.browser-contracts.result }}
+          ONLINE_RESULT: ${{ needs.online-delivery.result }}
+          CONTAINERS_RESULT: ${{ needs.containers.result }}
           PACKAGE_RESULT: ${{ needs.package.result }}
           REPRODUCIBILITY_RESULT: ${{ needs.reproducibility.result }}
         run: |
           test "$TESTS_RESULT" = success
           test "$BROWSER_RESULT" = success
+          test "$ONLINE_RESULT" = success
+          test "$CONTAINERS_RESULT" = success
           test "$PACKAGE_RESULT" = success
           test "$REPRODUCIBILITY_RESULT" = success

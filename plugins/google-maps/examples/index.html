@@ -1,0 +1,7 @@
+<!doctype html><meta charset="utf-8"><title>DataTiles + Google Maps</title><style>#map{height:100vh}body{margin:0}</style><div id="map"></div>
+<script type="module">
+import {serverMapType,clientMapType} from "../datatiles-google-maps.js";
+window.initMap=()=>{const base="http://localhost:8080", dims={variable:"air_temperature"}, portrayal={palette:[[0,"#313695"],[10,"#74add1"],[20,"#ffffbf"],[30,"#f46d43"],[40,"#a50026"]]}; const map=new google.maps.Map(document.getElementById("map"),{center:{lat:40.7,lng:14.5},zoom:6}); map.overlayMapTypes.push(serverMapType(google,base,"temperature",{dimensions:dims})); /* alternatively: map.overlayMapTypes.setAt(0,clientMapType(google,base,"weather",portrayal,{dimensions:dims})); */};
+</script>
+<!-- Supply your own Google Maps JavaScript API key. -->
+<script async src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap"></script>

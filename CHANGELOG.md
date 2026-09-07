@@ -2,6 +2,7 @@
 
 ## Unreleased — DataTiles Store 0.6.0
 
+- adds the optional Online Delivery profile, scientific DNT1 and derived PNG/WebP delivery, TileJSON discovery, bounded multi-process/thread rendering, atomic portrayal caching, browser adapters, and Store served-preview integration;
 - adds dependency-free GeoJSON, CSV, XML, GPX, and newline-delimited GeoJSON feature importers with deterministic WGS 84 tiling, TMS storage, checksums, provenance, validation, and fail-clean output;
 - adds the supplied 1,140-feature `resources/ports.json` collection and integrates the ports inside the Gaeta-to-Maratea demonstration bounds as an unofficial, provenance-linked tiled-GeoJSON slice with client-side nautical portrayal;
 - vendors Bootstrap 5.3.8 CSS/JavaScript for a responsive, locally served PWA shell;

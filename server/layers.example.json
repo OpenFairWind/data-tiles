@@ -1,0 +1,52 @@
+{
+  "temperature": {
+    "dataset": "weather",
+    "title": "Air temperature",
+    "dimensions": {
+      "variable": "air_temperature"
+    },
+    "portrayal": {
+      "type": "scalar",
+      "palette": [
+        [
+          -20,
+          "#313695"
+        ],
+        [
+          0,
+          "#4575b4"
+        ],
+        [
+          15,
+          "#ffffbf"
+        ],
+        [
+          30,
+          "#f46d43"
+        ],
+        [
+          45,
+          "#a50026"
+        ]
+      ],
+      "nodata": "transparent"
+    },
+    "formats": [
+      "png",
+      "webp"
+    ],
+    "minzoom": 0,
+    "maxzoom": 14,
+    "bounds": [
+      5.0,
+      35.0,
+      20.0,
+      48.0
+    ],
+    "catalog": {
+      "enabled": true,
+      "priority": 100,
+      "query": {}
+    }
+  }
+}

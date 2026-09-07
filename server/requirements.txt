@@ -1,0 +1,6 @@
+fastapi>=0.116,<1
+uvicorn[standard]>=0.35,<1
+gunicorn>=23,<24
+uvicorn-worker>=0.3,<1
+numpy>=2.0,<3
+Pillow>=12,<13

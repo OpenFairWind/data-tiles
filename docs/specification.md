@@ -28,6 +28,7 @@ DataTiles does not define interpolation, portrayal, a calendar other than timezo
 | DNT1 codec | Encode or decode §11 exactly and enforce its resource limits. |
 | MBTiles exporter | Materialize a compatible slice using §9.2. |
 | HTTP service | Implement the core resources in §14 and state only conformance actually tested. |
+| Online Delivery profile | When claimed, implement the scientific delivery, portrayal, discovery, caching, concurrency, and rights requirements in the optional Online Delivery profile addendum. |
 | FAIR publication profile | Meet every MUST in §13 and retain validation evidence. |
 
 A partial implementation MUST NOT claim the class whose requirements it omits.

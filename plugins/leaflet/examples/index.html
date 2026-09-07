@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><title>DataTiles + Leaflet</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>#map{height:100vh}body{margin:0}</style><div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+import {serverLayer,clientLayer} from "../datatiles-leaflet.js";
+const base="http://localhost:8080", map=L.map("map").setView([40.7,14.5],6);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19}).addTo(map);
+const portrayal={palette:[[0,"#313695"],[10,"#74add1"],[20,"#ffffbf"],[30,"#f46d43"],[40,"#a50026"]]};
+const dims={variable:"air_temperature"};
+L.control.layers(null,{"Server rendered":serverLayer(L,base,"temperature",{dimensions:dims}),"Client DNT1":clientLayer(L,base,"weather",portrayal,{dimensions:dims})}).addTo(map);
+serverLayer(L,base,"temperature",{dimensions:dims}).addTo(map);
+</script>

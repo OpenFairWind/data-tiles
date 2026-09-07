@@ -38,6 +38,14 @@ demo = [
   "numpy==2.3.5; python_version >= '3.11'",
   "Pillow==12.3.0",
 ]
+server = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "uvicorn-worker>=0.3,<1",
+  "gunicorn>=23,<24",
+  "numpy>=2.0",
+  "Pillow>=11,<13",
+]
 test = [
   "pytest==8.4.2",
   "pytest-cov==7.0.0",
