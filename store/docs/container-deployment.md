@@ -19,6 +19,11 @@ The supplied Compose file binds the service only to loopback. Put a maintained H
 
 The image runs Gunicorn as unprivileged UID/GID `10001`, uses a read-only root filesystem, disables privilege escalation, and permits writes only through the three `/data` volumes and the bounded `/tmp` tmpfs. A single Gunicorn worker with four threads is deliberate for the reference SQLite application database; operators moving to another SQLAlchemy database may evaluate a different worker topology under load testing.
 
+The image defaults `DATABASE_URL`, `CATALOG_DIR`, and `BRANDING_DIR` to the
+three prepared `/data` locations. Compose and the direct invocation below state
+the same values explicitly so deployment configuration remains inspectable and
+can be overridden without rebuilding the image.
+
 ## Persistent volumes
 
 | Volume | Mount | Purpose |

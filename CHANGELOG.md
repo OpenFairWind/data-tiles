@@ -12,6 +12,7 @@
 - fixes the complete CI matrix by installing the declared `integrity` and `drm` extras required by the Ed25519 and encrypted-package tests.
 - adds an atomic `meteouniparthenope2datatiles.py` importer for local, HTTP(S), and OPeNDAP NetCDF sources, time-partitioned `.mbtiles` output, multi-model/domain slices, explicit nearest-neighbour provenance, checksums, and numeric DNT1 storage, with dedicated CI utility testing and inclusion in release component archives.
 - fixes server and Store CI/runtime dependency declarations for Starlette's `httpx2` test client and Authlib's Requests integration.
+- aligns the Store image's default database, catalog, and branding paths with its writable non-root `/data` directories and adds a container-default regression check.
 
 ## 0.20.0 — 2026-08-29
 

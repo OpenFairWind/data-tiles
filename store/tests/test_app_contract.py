@@ -1,9 +1,17 @@
 from io import BytesIO
+from pathlib import Path
 
 from PIL import Image
 
 from datatiles import DataTiles, encode_numeric_tile
 from datatiles_store import create_app
+
+
+def test_container_defaults_use_prepared_non_root_data_directories():
+    dockerfile = (Path(__file__).parents[1] / "Dockerfile").read_text(encoding="utf-8")
+    assert "DATATILES_STORE_DATABASE_URL=sqlite:////data/state/store.db" in dockerfile
+    assert "DATATILES_STORE_CATALOG_DIR=/data/catalog" in dockerfile
+    assert "DATATILES_STORE_BRANDING_DIR=/data/branding" in dockerfile
 
 
 def make_revision_8(path):

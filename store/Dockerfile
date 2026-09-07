@@ -2,7 +2,10 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    DATATILES_STORE_DATABASE_URL=sqlite:////data/state/store.db \
+    DATATILES_STORE_CATALOG_DIR=/data/catalog \
+    DATATILES_STORE_BRANDING_DIR=/data/branding
 
 WORKDIR /app
 COPY . /app
