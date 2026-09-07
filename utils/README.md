@@ -92,3 +92,63 @@ Converters do not accept private signing keys and do not auto-sign outputs. Cryp
 ## Commercial DRM
 
 Import utilities intentionally contain no DRM keys and no licence issuance logic. After a lawful final product is frozen and optionally signed, use `datatiles-drm protect` and `datatiles-drm issue-license`. This keeps source acquisition reproducible and keeps commercial secrets out of scientific ingestion workflows.
+
+## Meteo@UniParthenope archive importer
+
+`meteouniparthenope2datatiles.py` imports one or more NetCDF products for the
+same forecast-valid instant into one DataTiles container. Source basenames MUST
+have this form:
+
+```text
+<prod>_<domain>_<YYYYMMDD>Z<hhmm>.nc
+```
+
+`prod` MUST be one of `wrf5`, `ww33`, `rms3`, `wcm3`, or `aiq3`; `domain` MUST
+be one of `d01`, `d02`, or `d03`. Availability of a product/domain pair is a
+property of the upstream archive and is not inferred by the utility. The
+filename instant MUST equal the single decoded NetCDF `time` coordinate. All
+sources supplied in one invocation MUST have the same instant.
+
+The regular archive URL is:
+
+```text
+https://data.meteo.uniparthenope.it/files/<prod>/<domain>/archive/<YYYY>/<MM>/<DD>/<prod>_<domain>_<YYYYMMDD>Z<hhmm>.nc
+```
+
+For example, a downloaded file, a `file:` URI, and an ordinary HTTPS resource
+are accepted by the same command:
+
+```bash
+python utils/meteouniparthenope2datatiles.py \
+  ./wrf5_d01_20260907Z1200.nc \
+  https://data.meteo.uniparthenope.it/files/ww33/d01/archive/2026/09/07/ww33_d01_20260907Z1200.nc \
+  --root ./weather-tiles --zoom 6 \
+  --source-license LicenseRef-MeteoUniParthenope-Terms \
+  --source-license-uri https://www.meteo.uniparthenope.it/ \
+  --source-attribution "Meteo@UniParthenope" \
+  --dataset-license LicenseRef-MeteoUniParthenope-Derived \
+  --dataset-license-uri https://www.meteo.uniparthenope.it/
+```
+
+This writes or atomically extends:
+
+```text
+./weather-tiles/2026/09/07/20260907Z1200.mbtiles
+```
+
+Use `--opendap` when every supplied HTTP(S) source is an OPeNDAP dataset URL.
+The utility materializes the retrieved dataset as a temporary NetCDF snapshot,
+hashes that exact snapshot, records the original OPeNDAP URL and acquisition
+mode as provenance, and deletes the temporary file. An ordinary HTTP(S) NetCDF
+resource is instead hashed as downloaded file bytes. A local file is hashed in
+place. Public transport access MUST NOT be interpreted as permission to use or
+redistribute the data; the operator MUST supply the applicable source and
+derived-dataset rights arguments.
+
+Each numeric slice is addressed by `variable`, `product`, `domain`, and
+`valid_time`, plus any additional non-spatial source dimensions. Variables are
+registered under the producer-local `MeteoUniParthenope` vocabulary because
+the source metadata is not assumed to contain authoritative CF Standard Names.
+Rectilinear latitude/longitude values are resampled to Web Mercator tile pixel
+centres with explicitly recorded nearest-neighbour sampling. Values remain
+DNT1 numeric arrays; the utility does not create or store portrayal imagery.

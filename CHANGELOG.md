@@ -10,6 +10,7 @@
 - adds Bearer-authenticated logo API parity, dynamic branding in the PWA manifest, security validation, regression tests, and updated Store documentation/visual evidence.
 - adds a hardened Docker/Gunicorn image, persistent-volume Docker Compose deployment, container operations documentation, and the Montella–Foster 2010 environmental-data cloud-storage citation in the stated historical lineage toward Zarr.
 - fixes the complete CI matrix by installing the declared `integrity` and `drm` extras required by the Ed25519 and encrypted-package tests.
+- adds an atomic `meteouniparthenope2datatiles.py` importer for local, HTTP(S), and OPeNDAP NetCDF sources, time-partitioned `.mbtiles` output, multi-model/domain slices, explicit nearest-neighbour provenance, checksums, and numeric DNT1 storage, with dedicated CI utility testing and inclusion in release component archives.
 
 ## 0.20.0 — 2026-08-29
 

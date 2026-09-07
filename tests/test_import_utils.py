@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -16,11 +18,96 @@ def load_common():
     return module
 
 
+def load_meteo_utility():
+    utils = Path(__file__).parents[1] / "utils"
+    sys.path.insert(0, str(utils))
+    try:
+        path = utils / "meteouniparthenope2datatiles.py"
+        spec = importlib.util.spec_from_file_location("meteouniparthenope2datatiles", path)
+        assert spec and spec.loader
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        sys.path.remove(str(utils))
+
+
 def test_safe_token_and_tile_ranges():
     common = load_common()
     assert common.safe_token("Sea Floor Depth") == "sea_floor_depth"
     xs, ys = common.tile_ranges((12.8, 39.9, 15.8, 41.3), 7)
     assert len(xs) > 0 and len(ys) > 0
+
+
+def test_meteouniparthenope_source_identity_and_output_path(tmp_path):
+    utility = load_meteo_utility()
+    identity = utility.parse_source_identity(
+        "https://data.meteo.uniparthenope.it/files/wrf5/d01/archive/2026/09/07/wrf5_d01_20260907Z1200.nc"
+    )
+    assert (identity.product, identity.domain, identity.stamp) == ("wrf5", "d01", "20260907Z1200")
+    assert utility.output_path(tmp_path, identity) == tmp_path / "2026/09/07/20260907Z1200.mbtiles"
+
+
+def test_meteouniparthenope_import_merges_models_for_one_valid_time(tmp_path):
+    import pytest
+    np = pytest.importorskip("numpy")
+    xr = pytest.importorskip("xarray")
+    from datatiles import DataTiles
+
+    coordinates = {
+        "time": xr.DataArray([1110492], dims="time", attrs={"units": "hours since 1900-01-01 00:00:0.0"}),
+        "latitude": [40.0, 41.0],
+        "longitude": [13.0, 14.0],
+    }
+    sources = []
+    for product, domain, offset in (("wrf5", "d01", 0.0), ("ww33", "d02", 10.0)):
+        path = tmp_path / f"{product}_{domain}_20260907Z1200.nc"
+        xr.Dataset(
+            {"VALUE": (("time", "latitude", "longitude"),
+                       np.array([[[1.0, 2.0], [3.0, 4.0]]], dtype="float32") + offset,
+                       {"description": "Producer-local value", "units": "m s-1"})},
+            coords=coordinates,
+        ).to_netcdf(path)
+        sources.append(path)
+
+    root = Path(__file__).parents[1]
+    output_root = tmp_path / "tiles"
+    command = [
+        sys.executable, str(root / "utils/meteouniparthenope2datatiles.py"),
+        *(str(path) for path in sources), "--root", str(output_root), "--zoom", "0", "--tile-size", "8",
+        "--source-license", "LicenseRef-Fixture", "--source-license-uri", "https://example.test/source-terms",
+        "--source-attribution", "Fixture provider", "--dataset-license", "LicenseRef-Fixture-Derived",
+        "--dataset-license-uri", "https://example.test/output-terms",
+    ]
+    result = subprocess.run(command, text=True, capture_output=True,
+                            env={**os.environ, "PYTHONPATH": str(root / "src")})
+    assert result.returncode == 0, result.stderr
+    output = output_root / "2026/09/07/20260907Z1200.mbtiles"
+    with DataTiles(output, read_only=True) as store:
+        assert store.validate(require_variable_semantics=True) == []
+        profiles = store.content_profiles()
+        assert len(profiles) == 2
+        assert {(p["coordinates"]["product"], p["coordinates"]["domain"]) for p in profiles} == {
+            ("wrf5", "d01"), ("ww33", "d02")
+        }
+        assert {p["coordinates"]["valid_time"] for p in profiles} == {"2026-09-07T12:00:00.000000Z"}
+        assert store.db.execute("SELECT count(*) FROM datatiles_provenance_entities").fetchone()[0] == 2
+
+    appended = tmp_path / "rms3_d03_20260907Z1200.nc"
+    xr.Dataset(
+        {"VALUE": (("time", "latitude", "longitude"),
+                   np.array([[[21.0, 22.0], [23.0, 24.0]]], dtype="float32"),
+                   {"description": "Producer-local value", "units": "m s-1"})},
+        coords=coordinates,
+    ).to_netcdf(appended)
+    append_command = command[:2] + [str(appended)] + command[4:]
+    result = subprocess.run(append_command, text=True, capture_output=True,
+                            env={**os.environ, "PYTHONPATH": str(root / "src")})
+    assert result.returncode == 0, result.stderr
+    with DataTiles(output, read_only=True) as store:
+        assert len(store.content_profiles()) == 3
+        assert store.validate(require_variable_semantics=True) == []
 
 
 def test_local_source_identity_and_checksum(tmp_path):
