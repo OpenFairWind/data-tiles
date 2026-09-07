@@ -37,7 +37,7 @@ Before downloading data, the operator MUST open each source landing page, determ
 
 `make acquire` records byte-level SHA-256 checksums and exact HTTP request URLs in `work/source-lock.json`. Mutable HTTP response information is kept separately in `acquisition-report.json`, so it cannot perturb the scientific lock. `make build` consumes only the locked raw files. `make verify` validates every raw and derived checksum and the SQLite/foreign-key invariants.
 
-For a complete repository-local execution that keeps the isolated environment, downloads, generated object, double-build checks, API outputs, and screenshots under the ignored `data/directory/`, follow the normative-supporting [step-by-step reproducibility guide](../../docs/reproducibility.md#step-by-step-execution-in-data). The guide explicitly separates an exact retained-runtime reconstruction from a host-specific demonstration build; changing the tracked runtime lock to bypass a mismatch is prohibited.
+For a complete repository-local execution that keeps the isolated environment, downloads, generated object, double-build checks, API outputs, and screenshots under the ignored `data/`, follow the normative-supporting [step-by-step reproducibility guide](../../docs/reproducibility.md#step-by-step-execution-in-data). The guide explicitly separates an exact retained-runtime reconstruction from a host-specific demonstration build; changing the tracked runtime lock to bypass a mismatch is prohibited.
 
 The build also creates `gaeta-to-maratea-evidence.zip`, a deterministically ordered and timestamp-normalized evidence bundle containing the configuration, source lock, raw source subsets, artifact manifest, and final DataTiles database.
 

@@ -2,20 +2,61 @@
 
 `netcdf2datatiles.py`, `grib2datatiles.py`, and `zarr2datatiles.py` convert scientific source grids into DNT1 numeric DataTiles. They deliberately do **not** pre-render PNG/JPEG/WebP map imagery.
 
-Both commands accept either a local path, a `file:` URI, or an HTTP(S) URL. HTTP(S) input is downloaded to a temporary seekable file, SHA-256 hashed, imported, and deleted. The original URL and checksum are retained as DataTiles source/provenance metadata.
+The scientific-grid commands accept either a local path, a `file:` URI, or an HTTP(S) URL. HTTP(S) input is downloaded to a temporary seekable file, SHA-256 hashed, imported, and deleted. The original URL and checksum are retained as DataTiles source/provenance metadata.
 
 The first implementation targets rectilinear one-dimensional latitude/longitude grids. It resamples to Web Mercator tile pixel centers using nearest-neighbour sampling and stores rows through the DataTiles XYZ interface, which converts them to MBTiles/TMS storage. Curvilinear grids, rotated poles, projected source grids, conservative remapping, and antimeridian-spanning imports must use a future specialized resampling path rather than being silently approximated.
 
-Install optional dependencies from a repository checkout:
+## Python environment setup
+
+The utilities require Python 3.10 or newer. Create a dedicated virtual
+environment from the repository root so that the optional scientific I/O
+dependencies do not become dependencies of the core `datatiles` package:
 
 ```bash
-python -m pip install -e '.[utils]'
+python3 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -e '.[utils]'
+```
+
+On Windows PowerShell, activate the same environment with:
+
+```powershell
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[utils]"
+```
+
+Verify the virtual-environment installation before running an import:
+
+```bash
+.venv/bin/python -c "import datatiles, numpy, xarray, netCDF4, cfgrib, zarr, fsspec; print('DataTiles utility environment ready')"
+.venv/bin/python utils/netcdf2datatiles.py --help
+.venv/bin/python utils/grib2datatiles.py --help
+.venv/bin/python utils/zarr2datatiles.py --help
+```
+
+The commands below invoke `.venv/bin/python` explicitly and therefore do not
+depend on shell activation. On Windows, use `.venv\Scripts\python.exe` in its
+place. GRIB support also requires the ecCodes native library used by `eccodes`/`cfgrib`;
+if the verification command cannot load ecCodes, install it using the package
+manager documented for the operating system before retrying. Environment
+creation and dependency installation require network access unless the needed
+packages are already available from a local package cache.
+
+To run the complete repository test suite in the same environment, include the
+test, integrity, and DRM extras, then run the required checks from the
+repository root:
+
+```bash
+.venv/bin/python -m pip install -e '.[utils,test,integrity,drm]'
+.venv/bin/python -m compileall src tests
+.venv/bin/python -m pytest
 ```
 
 NetCDF example:
 
 ```bash
-python utils/netcdf2datatiles.py ./ocean.nc ocean.datatiles \
+.venv/bin/python utils/netcdf2datatiles.py ./ocean.nc ocean.datatiles \
   --variable depth --zoom 7 --bbox 12.8 39.9 15.8 41.3 \
   --source-license CC-BY-4.0 --source-license-uri https://creativecommons.org/licenses/by/4.0/ \
   --source-attribution "Required source credit" \
@@ -25,7 +66,7 @@ python utils/netcdf2datatiles.py ./ocean.nc ocean.datatiles \
 URL example:
 
 ```bash
-python utils/netcdf2datatiles.py \
+.venv/bin/python utils/netcdf2datatiles.py \
   https://example.org/data/ocean.nc ocean.datatiles --variable depth \
   --source-license LicenseRef-Source-Terms --source-license-uri https://example.org/terms \
   --source-attribution "Required source credit" \
@@ -35,7 +76,7 @@ python utils/netcdf2datatiles.py \
 GRIB2 example:
 
 ```bash
-python utils/grib2datatiles.py ./forecast.grib2 weather.datatiles \
+.venv/bin/python utils/grib2datatiles.py ./forecast.grib2 weather.datatiles \
   --variable t2m --zoom 6 \
   --source-license LicenseRef-Provider-Terms --source-license-uri https://example.org/model-terms \
   --source-attribution "Required model-provider credit" \
@@ -45,7 +86,7 @@ python utils/grib2datatiles.py ./forecast.grib2 weather.datatiles \
 When one GRIB file contains incompatible hypercubes, use repeatable cfgrib filters:
 
 ```bash
-python utils/grib2datatiles.py forecast.grib2 pressure.datatiles \
+.venv/bin/python utils/grib2datatiles.py forecast.grib2 pressure.datatiles \
   --filter-by-keys typeOfLevel=isobaricInhPa --variable t
 ```
 
@@ -65,7 +106,7 @@ Important constraints:
 Local directory store:
 
 ```bash
-python utils/zarr2datatiles.py ./ocean.zarr ocean.datatiles \
+.venv/bin/python utils/zarr2datatiles.py ./ocean.zarr ocean.datatiles \
   --variable depth --zoom 7 \
   --source-license CC-BY-4.0 --source-license-uri https://creativecommons.org/licenses/by/4.0/ \
   --source-attribution "Required source attribution" \
@@ -75,7 +116,7 @@ python utils/zarr2datatiles.py ./ocean.zarr ocean.datatiles \
 Remote store:
 
 ```bash
-python utils/zarr2datatiles.py https://example.org/ocean.zarr ocean.datatiles \
+.venv/bin/python utils/zarr2datatiles.py https://example.org/ocean.zarr ocean.datatiles \
   --source-sha256 <authoritative-immutable-store-sha256> \
   --variable depth --zoom 7 \
   --source-license CC-BY-4.0 --source-license-uri https://creativecommons.org/licenses/by/4.0/ \
@@ -119,7 +160,7 @@ For example, a downloaded file, a `file:` URI, and an ordinary HTTPS resource
 are accepted by the same command:
 
 ```bash
-python utils/meteouniparthenope2datatiles.py \
+.venv/bin/python utils/meteouniparthenope2datatiles.py \
   ./wrf5_d01_20260907Z1200.nc \
   https://data.meteo.uniparthenope.it/files/ww33/d01/archive/2026/09/07/ww33_d01_20260907Z1200.nc \
   --root ./weather-tiles --zoom 6 \

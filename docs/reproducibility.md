@@ -33,19 +33,19 @@ Compare the printed object with `demo/from-gaeta-to-maratea/runtime-lock.json`. 
 
 ## Step-by-step execution in `data/`
 
-The following procedure keeps downloads, the isolated environment, generated containers, and use-case outputs under the ignored repository-local `data/directory/`. It MUST NOT overwrite the tracked configuration or retained runtime lock.
+The following procedure keeps downloads, the isolated environment, generated containers, and use-case outputs under the ignored repository-local `data/`. It MUST NOT overwrite the tracked configuration or retained runtime lock.
 
 ### 1. Prepare an isolated workspace
 
 From the repository root:
 
 ```bash
-mkdir -p data/directory
-cp demo/from-gaeta-to-maratea/config.json data/directory/config.json
-cp demo/from-gaeta-to-maratea/runtime-lock.json data/directory/runtime-lock.json
-python3.12 -m venv data/directory/.venv
-data/directory/.venv/bin/python -m pip install --upgrade pip
-data/directory/.venv/bin/python -m pip install -e '.[demo,test]'
+mkdir -p data
+cp demo/from-gaeta-to-maratea/config.json data/config.json
+cp demo/from-gaeta-to-maratea/runtime-lock.json data/runtime-lock.json
+python3.12 -m venv data/.venv
+data/.venv/bin/python -m pip install --upgrade pip
+data/.venv/bin/python -m pip install -e '.[demo,test]'
 ```
 
 The copied configuration remains checksum-identical to the tracked configuration. Keeping the runtime lock beside it is required because the pipeline resolves `runtime-lock.json` relative to `--config`.
@@ -55,9 +55,9 @@ The copied configuration remains checksum-identical to the tracked configuration
 Inspect the active runtime before acquisition:
 
 ```bash
-data/directory/.venv/bin/python -c \
+data/.venv/bin/python -c \
   'from datatiles.demo import runtime_versions; print(runtime_versions())'
-diff -u demo/from-gaeta-to-maratea/runtime-lock.json data/directory/runtime-lock.json
+diff -u demo/from-gaeta-to-maratea/runtime-lock.json data/runtime-lock.json
 ```
 
 For an exact reconstruction claim, the active versions MUST equal the retained lock. Stop when they differ; do not edit the tracked lock merely to make the gate pass.
@@ -65,8 +65,8 @@ For an exact reconstruction claim, the active versions MUST equal the retained l
 For a host-specific demonstration build only, replace the copied lock—never the tracked lock—with an explicit record of the active environment:
 
 ```bash
-data/directory/.venv/bin/python -c \
-  "from pathlib import Path; from datatiles.demo import runtime_versions,write_json; write_json(Path('data/directory/runtime-lock.json'),runtime_versions())"
+data/.venv/bin/python -c \
+  "from pathlib import Path; from datatiles.demo import runtime_versions,write_json; write_json(Path('data/runtime-lock.json'),runtime_versions())"
 ```
 
 Such a run can verify internal checksums and byte identity across repeated builds on that host, but it is not the retained reference-runtime reconstruction. Its manifest and documentation MUST identify the actual runtime.
@@ -74,9 +74,9 @@ Such a run can verify internal checksums and byte identity across repeated build
 ### 3. Acquire and review immutable inputs
 
 ```bash
-data/directory/.venv/bin/python -m datatiles.demo acquire \
-  --config data/directory/config.json \
-  --work data/directory/work
+data/.venv/bin/python -m datatiles.demo acquire \
+  --config data/config.json \
+  --work data/work
 ```
 
 If the Python installation lacks a usable CA bundle, install `certifi` in the acquisition environment and set `SSL_CERT_FILE` to the path printed by `python -m certifi`; TLS verification MUST NOT be disabled.
@@ -84,9 +84,9 @@ If the Python installation lacks a usable CA bundle, install `certifi` in the ac
 Before building, inspect:
 
 ```bash
-find data/directory/work/raw -type f -maxdepth 1 -print
-data/directory/.venv/bin/python -m json.tool data/directory/work/source-lock.json
-data/directory/.venv/bin/python -m json.tool data/directory/work/acquisition-report.json
+find data/work/raw -type f -maxdepth 1 -print
+data/.venv/bin/python -m json.tool data/work/source-lock.json
+data/.venv/bin/python -m json.tool data/work/acquisition-report.json
 ```
 
 Confirm response types, catalogue identifiers, releases, licences, request URLs, sizes, and SHA-256 values. Archive the accepted `source-lock.json`. Live-service responses remain mutable even when their URLs do not change.
@@ -97,9 +97,9 @@ Set `MEDCHART_DATA` to the chart-builder `data/` directory. The import validates
 
 ```bash
 MEDCHART_DATA=/path/to/mediterranean-chart-builder/data
-data/directory/.venv/bin/python -m datatiles.demo import-medchart \
-  --config data/directory/config.json \
-  --work data/directory/work \
+data/.venv/bin/python -m datatiles.demo import-medchart \
+  --config data/config.json \
+  --work data/work \
   --source-root "$MEDCHART_DATA"
 ```
 
@@ -110,12 +110,12 @@ The chart-builder also supplies checksum-locked JammeGaia22 multiresolution UTM 
 ### 5. Build and verify the DataTiles object
 
 ```bash
-data/directory/.venv/bin/python -m datatiles.demo build \
-  --config data/directory/config.json \
-  --work data/directory/work
-data/directory/.venv/bin/python -m datatiles.demo verify \
-  --config data/directory/config.json \
-  --work data/directory/work
+data/.venv/bin/python -m datatiles.demo build \
+  --config data/config.json \
+  --work data/work
+data/.venv/bin/python -m datatiles.demo verify \
+  --config data/config.json \
+  --work data/work
 ```
 
 Review `artifact-manifest.json`, `bathymetry-preview.png`, and `seafloor-class-preview.png`. The previews are deterministic QA portrayals, not stored scientific variables. The primary products are `gaeta-to-maratea.datatiles` and `gaeta-to-maratea-evidence.zip`.
@@ -124,17 +124,17 @@ Review `artifact-manifest.json`, `bathymetry-preview.png`, and `seafloor-class-p
 
 ```bash
 shasum -a 256 \
-  data/directory/work/gaeta-to-maratea.datatiles \
-  data/directory/work/gaeta-to-maratea-evidence.zip \
-  > data/directory/first-build.sha256
+  data/work/gaeta-to-maratea.datatiles \
+  data/work/gaeta-to-maratea-evidence.zip \
+  > data/first-build.sha256
 
-data/directory/.venv/bin/python -m datatiles.demo build \
-  --config data/directory/config.json \
-  --work data/directory/work
-data/directory/.venv/bin/python -m datatiles.demo verify \
-  --config data/directory/config.json \
-  --work data/directory/work
-shasum -a 256 -c data/directory/first-build.sha256
+data/.venv/bin/python -m datatiles.demo build \
+  --config data/config.json \
+  --work data/work
+data/.venv/bin/python -m datatiles.demo verify \
+  --config data/config.json \
+  --work data/work
+shasum -a 256 -c data/first-build.sha256
 ```
 
 Both checks MUST report `OK`. A mismatch is pipeline drift and invalidates byte-identity claims until explained.
@@ -142,8 +142,8 @@ Both checks MUST report `OK`. A mismatch is pipeline drift and invalidates byte-
 ### 7. Run the local scientific playground
 
 ```bash
-data/directory/.venv/bin/datatiles-serve \
-  data/directory/work/gaeta-to-maratea.datatiles \
+data/.venv/bin/datatiles-serve \
+  data/work/gaeta-to-maratea.datatiles \
   --host 127.0.0.1 --port 8080
 ```
 
@@ -154,18 +154,18 @@ The browser URL MUST use `http://127.0.0.1:8080/playground`. Do not open `src/da
 ### 8. Retain machine-readable use-case evidence
 
 ```bash
-mkdir -p data/directory/use-cases
-curl -o data/directory/use-cases/profile.json \
+mkdir -p data/use-cases
+curl -o data/use-cases/profile.json \
   'http://127.0.0.1:8080/collections/gaeta-to-maratea/profile?start=14.190,40.810&end=14.235,40.555&samples=256&f=json'
-curl -o data/directory/use-cases/profile.csv \
+curl -o data/use-cases/profile.csv \
   'http://127.0.0.1:8080/collections/gaeta-to-maratea/profile?start=14.190,40.810&end=14.235,40.555&samples=256&f=csv'
-curl -o data/directory/use-cases/fair.json \
+curl -o data/use-cases/fair.json \
   'http://127.0.0.1:8080/collections/gaeta-to-maratea/fair'
-curl -o data/directory/use-cases/surface.json \
+curl -o data/use-cases/surface.json \
   'http://127.0.0.1:8080/collections/gaeta-to-maratea/surface?bbox=13.8,40.5,14.5,41.0&width=96&height=72'
-curl -o data/directory/use-cases/nautical-items.geojson \
+curl -o data/use-cases/nautical-items.geojson \
   'http://127.0.0.1:8080/collections/gaeta-to-maratea/nautical-items?bbox=13.8,40.5,14.5,41.0'
-curl -o data/directory/use-cases/contents.json \
+curl -o data/use-cases/contents.json \
   'http://127.0.0.1:8080/collections/gaeta-to-maratea/contents'
 ```
 

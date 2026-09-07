@@ -1,5 +1,25 @@
 # DataTiles import utilities
 
+## Python environment
+
+The import utilities MUST be installed and run in a dedicated Python 3.10 or
+newer virtual environment. From the repository root on a POSIX-like system:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -e '.[utils]'
+.venv/bin/python utils/netcdf2datatiles.py --help
+```
+
+Using the virtual environment interpreter explicitly makes each command
+independent of shell activation and prevents optional scientific packages from
+being installed into the system Python environment. Windows PowerShell users
+can use `.venv\Scripts\python.exe` in place of `.venv/bin/python`. GRIB import
+also requires the ecCodes native library used by `eccodes` and `cfgrib`. See
+`../utils/README.md` for environment verification and complete test-suite
+installation.
+
 ## Dependency-free feature importers
 
 The executable utilities `geojson2datatiles`, `csv2datatiles`, `xml2datatiles`, `gpx2datatiles`, and `ndjson2datatiles` under `utils/` translate feature records into deterministic tiled GeoJSON. They validate finite WGS 84 longitude/latitude positions, convert XYZ addressing to stored TMS rows, checksum the immutable input bytes, record the conversion activity and source entity, and remove incomplete output after failure. These converters preserve vector features; they do not rasterize or portray them.
@@ -9,9 +29,9 @@ All feature importers accept `INPUT OUTPUT`, `--min-zoom`, `--max-zoom`, `--name
 For example, the supplied, non-authoritative ports collection can be converted and validated without optional dependencies:
 
 ```bash
-PYTHONPATH=src python utils/geojson2datatiles resources/ports.json ports.datatiles \
+PYTHONPATH=src .venv/bin/python utils/geojson2datatiles resources/ports.json ports.datatiles \
   --name "Ports collection" --variable ports --min-zoom 0 --max-zoom 6
-datatiles validate ports.datatiles
+.venv/bin/datatiles validate ports.datatiles
 ```
 
 `resources/ports.json` contains 1,140 point features. Its repository snapshot has SHA-256 `519aacd40928770c72ce9b9d714776b4689c1352ec56f5a5b3ee52b60982fec9`. It is included solely to reproduce the import and client-side portrayal demonstrations and is not an official chart, port register, or navigation aid.
@@ -70,7 +90,7 @@ The limit is evaluated for every non-spatial slice of every selected variable. A
 ## Examples
 
 ```bash
-python utils/netcdf2datatiles.py input.nc output.datatiles \
+.venv/bin/python utils/netcdf2datatiles.py input.nc output.datatiles \
   --variable sea_floor_depth_below_geoid --zoom 8 \
   --source-license CC-BY-4.0 --source-license-uri https://creativecommons.org/licenses/by/4.0/ \
   --source-attribution "Required source credit" \
@@ -78,7 +98,7 @@ python utils/netcdf2datatiles.py input.nc output.datatiles \
 ```
 
 ```bash
-python utils/grib2datatiles.py https://example.org/model.grib2 output.datatiles \
+.venv/bin/python utils/grib2datatiles.py https://example.org/model.grib2 output.datatiles \
   --filter-by-keys typeOfLevel=surface --variable t2m --zoom 6 \
   --source-license LicenseRef-Provider-Terms --source-license-uri https://example.org/model-terms \
   --source-attribution "Required provider credit" \
@@ -86,7 +106,7 @@ python utils/grib2datatiles.py https://example.org/model.grib2 output.datatiles 
 ```
 
 ```bash
-python utils/zarr2datatiles.py ./ocean.zarr output.datatiles \
+.venv/bin/python utils/zarr2datatiles.py ./ocean.zarr output.datatiles \
   --variable depth --zoom 7 \
   --source-license CC-BY-4.0 --source-license-uri https://creativecommons.org/licenses/by/4.0/ \
   --source-attribution "Required source credit" \
@@ -96,7 +116,7 @@ python utils/zarr2datatiles.py ./ocean.zarr output.datatiles \
 Validate semantic registration after import:
 
 ```bash
-datatiles validate output.datatiles --require-variable-semantics
+.venv/bin/datatiles validate output.datatiles --require-variable-semantics
 ```
 
 For strict CF-table membership validation, additionally provide the pinned official CF XML table used by the publication workflow.
