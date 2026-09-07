@@ -8,8 +8,8 @@ DataTiles uses independent quality gates because format correctness, scientific 
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e '.[demo,test]'
-python -m compileall -q src tests
+python -m pip install -e '.[demo,test,utils]'
+python -m compileall -q src tests utils
 python -m pytest --cov=datatiles --cov-branch --cov-report=term-missing
 ```
 
@@ -17,20 +17,21 @@ The suite covers storage and MBTiles views, physical-table MBTiles fallback and 
 
 ## CI workflow
 
-`.github/workflows/ci.yml` executes on pull requests and pushes to `main`. It applies six required gates:
+`.github/workflows/ci.yml` executes on pull requests and pushes to `main`. It applies seven required gates:
 
 1. The complete suite runs on Python 3.10, 3.11, 3.12, and 3.13 with branch coverage.
 2. Node.js parses the playground and every reusable Leaflet, OpenLayers, Google Maps, and shared-client module, then verifies live-rendering contracts.
-3. The optional high-concurrency server and Store are installed with their declared extras, compiled, and tested, including discovery, portrayal, caching, conditional requests, and served-preview behavior.
-4. Both Docker Compose models are validated; the reference server and Store images are built, checked for non-root runtime identities, started, and queried through server health/readiness/map discovery and Store health endpoints.
-5. PEP 517 builds source and wheel distributions, Twine validates metadata, and a fresh environment installs and invokes the wheel.
-6. The controlled scientific fixture is rebuilt twice and checked for byte identity.
+3. The scientific and feature import utilities are installed with their complete optional dependency stack, compiled, command-interface checked, and regression tested.
+4. The optional high-concurrency server and Store are installed with their declared extras, compiled, and tested, including discovery, portrayal, caching, conditional requests, and served-preview behavior.
+5. Both Docker Compose models are validated; the reference server and Store images are built, checked for non-root runtime identities, started, and queried through server health/readiness/map discovery and Store health endpoints.
+6. PEP 517 builds source and wheel distributions, Twine validates metadata, and a fresh environment installs and invokes the wheel.
+7. The controlled scientific fixture is rebuilt twice and checked for byte identity.
 
 The terminal `ci-success` job depends on every gate and is the recommended branch-protection status check. Configure `main` to require pull requests and this check, dismiss stale approvals, require conversation resolution, prohibit force pushes, and restrict deletion.
 
 ## CD and release protocol
 
-`.github/workflows/release.yml` builds from a semantic version tag `vX.Y.Z`. It rejects a tag differing from `datatiles.__version__` or lacking the corresponding `CHANGELOG.md` heading. It reruns the core, server, Store, browser-module, Compose, and container-runtime gates; builds Python distributions and a checksummed component bundle containing the plugins, server, Store, and profile documentation; publishes tagged server and Store images to GitHub Container Registry; and retains the products as release artifacts.
+`.github/workflows/release.yml` builds from a semantic version tag `vX.Y.Z`. It rejects a tag differing from `datatiles.__version__` or lacking the corresponding `CHANGELOG.md` heading. It reruns the core, import-utility, server, Store, browser-module, Compose, and container-runtime gates; builds Python distributions and a checksummed component bundle containing the utilities, plugins, server, Store, and profile documentation; publishes tagged server and Store images to GitHub Container Registry; and retains the products as release artifacts.
 
 For a tag release, GitHub produces build-provenance attestations, publishes the two container images, creates a GitHub Release, and publishes only the isolated wheel and source distribution through PyPI Trusted Publishing. No API token is stored. A manual run builds and validates artifacts; PyPI delivery occurs only when the operator enables its input.
 

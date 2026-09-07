@@ -49,6 +49,7 @@ server = [
 test = [
   "pytest==8.4.2",
   "pytest-cov==7.0.0",
+  "httpx2>=2.12,<3",
   "tomli==2.2.1; python_version < '3.11'",
 ]
 
