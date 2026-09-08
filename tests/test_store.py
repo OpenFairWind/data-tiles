@@ -44,6 +44,17 @@ def test_xyz_conversion(tmp_path):
     store.close()
 
 
+def test_tile_provenance_link_is_idempotent(tmp_path):
+    _, store = make_store(tmp_path)
+    coordinates = {"time": "2026-08-26T12:00:00Z", "depth": 0}
+    store.put(0, 0, 0, b"tile", coordinates)
+    store.add_provenance_entity("source:test", "dataset", "Test source")
+    store.link_tile_provenance(0, 0, 0, coordinates, "source:test")
+    store.link_tile_provenance(0, 0, 0, coordinates, "source:test")
+    assert store.db.execute("SELECT count(*) FROM datatiles_tile_provenance").fetchone()[0] == 1
+    store.close()
+
+
 def test_required_and_unknown_dimensions(tmp_path):
     _, store = make_store(tmp_path)
     with pytest.raises(DataTilesError, match="missing required"):

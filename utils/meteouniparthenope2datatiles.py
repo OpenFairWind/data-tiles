@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import glob
 import hashlib
 import math
 import os
@@ -31,6 +32,8 @@ from common import (
 
 PRODUCTS = ("wrf5", "ww33", "rms3", "wcm3", "aiq3")
 DOMAINS = ("d01", "d02", "d03")
+VARIABLE_ALIASES = {"U10": "U10M", "V10": "V10M"}
+COARSE_DOMAIN_REFERENCE_ZOOM = 6
 SOURCE_RE = re.compile(
     r"(?P<product>wrf5|ww33|rms3|wcm3|aiq3)_(?P<domain>d01|d02|d03)_"
     r"(?P<stamp>\d{8}Z\d{4})\.nc(?:$|[?#])",
@@ -66,7 +69,83 @@ def parse_source_identity(source: str) -> SourceIdentity:
 
 def output_path(root: Path, identity: SourceIdentity) -> Path:
     instant = identity.instant
-    return root / f"{instant:%Y}" / f"{instant:%m}" / f"{instant:%d}" / f"{identity.stamp}.mbtiles"
+    return root / f"{instant:%Y}" / f"{instant:%m}" / f"{instant:%d}" / f"{identity.product}_{identity.stamp}.mbtiles"
+
+
+def parse_zoom_range(value: str) -> tuple[int, ...]:
+    """Parse one zoom or an inclusive MIN,MAX range."""
+    try:
+        fields = [int(field.strip()) for field in value.split(",")]
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("zoom must be Z or MIN,MAX") from exc
+    if len(fields) == 1:
+        start = end = fields[0]
+    elif len(fields) == 2:
+        start, end = fields
+    else:
+        raise argparse.ArgumentTypeError("zoom must be Z or MIN,MAX")
+    if not 0 <= start <= end <= 22:
+        raise argparse.ArgumentTypeError("zoom must satisfy 0 <= MIN <= MAX <= 22")
+    return tuple(range(start, end + 1))
+
+
+def expand_sources(patterns: list[str]) -> list[str]:
+    """Expand local glob arguments even when a caller quoted them for portability."""
+    expanded: list[str] = []
+    for pattern in patterns:
+        if urllib.parse.urlparse(pattern).scheme or not glob.has_magic(pattern):
+            expanded.append(pattern)
+            continue
+        matches = sorted(glob.glob(os.path.expanduser(pattern)))
+        if not matches:
+            raise ConversionError(f"source pattern matched no files: {pattern}")
+        expanded.extend(matches)
+    return expanded
+
+
+def parse_variables(csv_values: list[str] | None, repeated: list[str] | None) -> list[str] | None:
+    names = list(repeated or [])
+    for value in csv_values or []:
+        names.extend(field.strip() for field in value.split(",") if field.strip())
+    return names or None
+
+
+def available_variables(dataset: Any, requested: list[str] | None) -> list[str]:
+    if requested is None:
+        return sorted(name for name, da in dataset.data_vars.items()
+                      if {"latitude", "longitude"}.issubset(da.dims))
+    resolved = [name if name in dataset.data_vars else VARIABLE_ALIASES.get(name, name)
+                for name in requested]
+    return [name for name in resolved if name in dataset.data_vars]
+
+
+def grid_resolution(dataset: Any) -> float:
+    """Return median rectilinear cell spacing in approximate metres."""
+    np, _ = require_scientific_stack()
+    lat = np.asarray(dataset.coords["latitude"].values, dtype="float64")
+    lon = np.asarray(dataset.coords["longitude"].values, dtype="float64")
+    if lat.ndim != 1 or lon.ndim != 1 or lat.size < 2 or lon.size < 2:
+        raise ConversionError("domain selection requires non-degenerate 1-D latitude/longitude coordinates")
+    latitude = float(np.median(lat))
+    dy = float(np.median(np.abs(np.diff(np.sort(lat))))) * 111_320.0
+    dx = float(np.median(np.abs(np.diff(np.sort(lon))))) * 111_320.0 * math.cos(math.radians(latitude))
+    resolution = math.sqrt(dx * dy)
+    if not math.isfinite(resolution) or resolution <= 0:
+        raise ConversionError("domain has invalid spatial resolution")
+    return resolution
+
+
+def domains_by_zoom(records: list[tuple[str, SourceIdentity, Any, ResolvedSource]],
+                    zooms: tuple[int, ...]) -> dict[int, tuple[str, SourceIdentity, Any, ResolvedSource]]:
+    """Select coarse-to-fine domains from measured resolution across the zoom range."""
+    ordered = sorted(records, key=lambda record: (-grid_resolution(record[2]), record[1].domain))
+    coarsest = grid_resolution(ordered[0][2])
+    anchors = [COARSE_DOMAIN_REFERENCE_ZOOM + math.log2(coarsest / grid_resolution(record[2]))
+               for record in ordered]
+    return {
+        zoom: min(zip(anchors, ordered), key=lambda item: (abs(zoom - item[0]), item[0]))[1]
+        for zoom in zooms
+    }
 
 
 def _sha256(path: Path) -> str:
@@ -222,13 +301,9 @@ def import_dataset(store: Any, dataset: Any, resolved: ResolvedSource, identity:
     from datatiles.numeric import encode_numeric_tile
 
     validate_dataset_time(dataset, identity)
-    names = variables or sorted(name for name, da in dataset.data_vars.items()
-                                if {"latitude", "longitude"}.issubset(da.dims))
+    names = available_variables(dataset, variables)
     if not names:
         raise ConversionError("no latitude/longitude data variables selected")
-    missing = [name for name in names if name not in dataset.data_vars]
-    if missing:
-        raise ConversionError("variable not found: " + ", ".join(missing))
     arrays = [dataset[name] for name in names]
     for da in arrays:
         if not {"latitude", "longitude"}.issubset(da.dims):
@@ -254,18 +329,17 @@ def import_dataset(store: Any, dataset: Any, resolved: ResolvedSource, identity:
     xs, ys = tile_ranges(actual_bbox, zoom)
 
     entity_id = f"source:meteouniparthenope:{identity.product}:{identity.domain}:sha256:{resolved.checksum}"
-    if store.db.execute("SELECT 1 FROM datatiles_provenance_entities WHERE entity_id=?", (entity_id,)).fetchone():
-        raise ConversionError(f"source was already imported: {resolved.identifier}")
-    store.add_provenance_entity(
-        entity_id, "dataset", f"Meteo@UniParthenope {identity.product}/{identity.domain} source",
-        uri=resolved.uri, checksum_algorithm=resolved.checksum_algorithm, checksum=resolved.checksum,
-        attributes={"source_kind": "NetCDF", "product": identity.product, "domain": identity.domain,
-                    "valid_time": _instant_text(identity.instant),
-                    "acquisition": "OPeNDAP materialized snapshot" if opendap else "file bytes"},
-    )
-    store.add_rights("source", source_license, license_uri=source_license_uri,
-                     attribution_text=source_attribution, access_rights=access_rights,
-                     source_entity_id=entity_id, applies_to=resolved.identifier)
+    if not store.db.execute("SELECT 1 FROM datatiles_provenance_entities WHERE entity_id=?", (entity_id,)).fetchone():
+        store.add_provenance_entity(
+            entity_id, "dataset", f"Meteo@UniParthenope {identity.product}/{identity.domain} source",
+            uri=resolved.uri, checksum_algorithm=resolved.checksum_algorithm, checksum=resolved.checksum,
+            attributes={"source_kind": "NetCDF", "product": identity.product, "domain": identity.domain,
+                        "valid_time": _instant_text(identity.instant),
+                        "acquisition": "OPeNDAP materialized snapshot" if opendap else "file bytes"},
+        )
+        store.add_rights("source", source_license, license_uri=source_license_uri,
+                         attribution_text=source_attribution, access_rights=access_rights,
+                         source_entity_id=entity_id, applies_to=resolved.identifier)
     if not store.db.execute("SELECT 1 FROM datatiles_rights WHERE scope='dataset'").fetchone():
         store.add_rights("dataset", dataset_license, license_uri=dataset_license_uri,
                          attribution_text=dataset_attribution, access_rights=access_rights)
@@ -278,15 +352,18 @@ def import_dataset(store: Any, dataset: Any, resolved: ResolvedSource, identity:
         ).fetchone()
         if tuple(existing_license) != (dataset_license, dataset_license_uri):
             raise ConversionError("dataset licence does not match the existing same-time DataTiles file")
-    activity_id = f"activity:import:{identity.product}:{identity.domain}:{resolved.checksum}"
-    store.add_provenance_activity(
-        activity_id, "conversion", f"Import {identity.product}/{identity.domain} NetCDF",
-        software="DataTiles meteouniparthenope2datatiles",
-        parameters={"algorithm": "nearest-neighbour", "zoom": zoom, "tile_size": tile_size,
-                    "bbox": bbox, "source_crs": "EPSG:4326", "output_crs": "EPSG:3857",
-                    "product": identity.product, "domain": identity.domain, "opendap": opendap},
-    )
-    store.add_provenance_relation(activity_id, "used", entity_id)
+    activity_id = f"activity:import:{identity.product}:{identity.domain}:z{zoom}:{resolved.checksum}"
+    if not store.db.execute(
+        "SELECT 1 FROM datatiles_provenance_activities WHERE activity_id=?", (activity_id,)
+    ).fetchone():
+        store.add_provenance_activity(
+            activity_id, "conversion", f"Import {identity.product}/{identity.domain} NetCDF",
+            software="DataTiles meteouniparthenope2datatiles",
+            parameters={"algorithm": "nearest-neighbour", "zoom": zoom, "tile_size": tile_size,
+                        "bbox": bbox, "source_crs": "EPSG:4326", "output_crs": "EPSG:3857",
+                        "product": identity.product, "domain": identity.domain, "opendap": opendap},
+        )
+        store.add_provenance_relation(activity_id, "used", entity_id)
     _ensure_extra_dimensions(store, dataset, arrays)
 
     stats = {"variables": 0, "slices": 0, "tiles": 0}
@@ -347,8 +424,12 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("source", nargs="+", help="NetCDF local path, file/HTTP(S) URL, or OPeNDAP URL")
     p.add_argument("--root", type=Path, required=True, help="output root directory")
     p.add_argument("--opendap", action="store_true", help="treat HTTP(S) sources as OPeNDAP datasets")
-    p.add_argument("--variable", action="append", dest="variables", help="variable to import; repeatable")
-    p.add_argument("--zoom", type=int, default=6)
+    p.add_argument("--variable", action="append", dest="variable", help="variable to import; repeatable")
+    p.add_argument("--variables", action="append", help="comma-separated variables to import")
+    p.add_argument("--zoom", type=parse_zoom_range, default=parse_zoom_range("6"),
+                   metavar="Z|MIN,MAX", help="one zoom or an inclusive zoom range")
+    p.add_argument("--frame-storage", choices=("separate", "single"), default="separate",
+                   help="write one product/time file per frame (default) or all frames to one file")
     p.add_argument("--tile-size", type=int, default=256)
     p.add_argument("--bbox", nargs=4, type=float, metavar=("WEST", "SOUTH", "EAST", "NORTH"))
     p.add_argument("--max-tiles", type=int, default=10000, help="per-source safety bound")
@@ -358,7 +439,10 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--source-license-uri", required=True)
     p.add_argument("--source-attribution", required=True)
     p.add_argument("--dataset-license", required=True)
-    p.add_argument("--dataset-license-uri", required=True)
+    p.add_argument(
+        "--dataset-license-uri",
+        help="derived-dataset terms URI; defaults to --source-license-uri for this provider profile",
+    )
     p.add_argument("--dataset-attribution")
     p.add_argument("--access-rights", choices=("open", "embargoed", "restricted", "closed"), default="open")
     return p
@@ -367,52 +451,86 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = parser().parse_args()
     try:
-        if not 0 <= args.zoom <= 22:
-            raise ConversionError("--zoom must be between 0 and 22")
         if not 8 <= args.tile_size <= 1024:
             raise ConversionError("--tile-size must be between 8 and 1024")
-        identities = [parse_source_identity(source) for source in args.source]
-        if len({identity.instant for identity in identities}) != 1:
-            raise ConversionError("all sources in one invocation must have the same filename date/time")
-        target = output_path(args.root.expanduser().resolve(), identities[0])
-        target.parent.mkdir(parents=True, exist_ok=True)
-        fd, staging_name = tempfile.mkstemp(prefix=target.name + ".", suffix=".tmp", dir=target.parent)
-        os.close(fd)
-        staging = Path(staging_name)
-        staging.unlink()
-        if target.exists():
-            shutil.copy2(target, staging)
-        totals = {"variables": 0, "slices": 0, "tiles": 0}
-        try:
-            from datatiles.store import DataTiles
-            with DataTiles(staging, create=not staging.exists(), name=target.stem,
-                           tile_format="application/vnd.datatiles.numeric") as store:
-                _ensure_container(store)
-                for source, identity in zip(args.source, identities):
-                    with open_source_dataset(source, opendap=args.opendap, engine=args.engine,
-                                             timeout=args.timeout) as (dataset, resolved):
-                        stats = import_dataset(
-                            store, dataset, resolved, identity, variables=args.variables, zoom=args.zoom,
-                            tile_size=args.tile_size, bbox=tuple(args.bbox) if args.bbox else None,
-                            max_tiles=args.max_tiles, source_license=args.source_license,
-                            source_license_uri=args.source_license_uri, source_attribution=args.source_attribution,
-                            dataset_license=args.dataset_license, dataset_license_uri=args.dataset_license_uri,
-                            dataset_attribution=args.dataset_attribution, access_rights=args.access_rights,
-                            opendap=args.opendap,
+        if args.dataset_license_uri is None:
+            args.dataset_license_uri = args.source_license_uri
+        sources = expand_sources(args.source)
+        identities = [parse_source_identity(source) for source in sources]
+        variables = parse_variables(args.variables, args.variable)
+        from contextlib import ExitStack
+        from datatiles.store import DataTiles
+        with ExitStack() as stack:
+            records = []
+            for source, identity in zip(sources, identities):
+                dataset, resolved = stack.enter_context(open_source_dataset(
+                    source, opendap=args.opendap, engine=args.engine, timeout=args.timeout
+                ))
+                records.append((source, identity, dataset, resolved))
+            if args.frame_storage == "separate":
+                keys = sorted({(record[1].product, record[1].instant) for record in records})
+                groups = [([record for record in records if (record[1].product, record[1].instant) == key], None)
+                          for key in keys]
+            else:
+                groups = [(records, args.root.expanduser().resolve() / "meteouniparthenope.mbtiles")]
+            totals = {"variables": 0, "slices": 0, "tiles": 0}
+            outputs = []
+            for group, explicit_target in groups:
+                if variables and not any(available_variables(record[2], variables) for record in group):
+                    continue
+                target = explicit_target or output_path(args.root.expanduser().resolve(), group[0][1])
+                target.parent.mkdir(parents=True, exist_ok=True)
+                fd, staging_name = tempfile.mkstemp(prefix=target.name + ".", suffix=".tmp", dir=target.parent)
+                os.close(fd)
+                staging = Path(staging_name)
+                staging.unlink()
+                if target.exists():
+                    shutil.copy2(target, staging)
+                try:
+                    with DataTiles(staging, create=not staging.exists(), name=target.stem,
+                                   tile_format="application/vnd.datatiles.numeric") as store:
+                        _ensure_container(store)
+                        frame_keys = sorted({(record[1].product, record[1].instant) for record in group})
+                        used = []
+                        for frame_key in frame_keys:
+                            frame = [record for record in group if (record[1].product, record[1].instant) == frame_key]
+                            if variables and not any(available_variables(record[2], variables) for record in frame):
+                                continue
+                            chosen = domains_by_zoom(frame, args.zoom)
+                            for zoom in args.zoom:
+                                source, identity, dataset, resolved = chosen[zoom]
+                                used.append(f"z{zoom}:{identity.product}/{identity.domain}")
+                                stats = import_dataset(
+                                    store, dataset, resolved, identity, variables=variables, zoom=zoom,
+                                    tile_size=args.tile_size, bbox=tuple(args.bbox) if args.bbox else None,
+                                    max_tiles=args.max_tiles, source_license=args.source_license,
+                                    source_license_uri=args.source_license_uri,
+                                    source_attribution=args.source_attribution,
+                                    dataset_license=args.dataset_license,
+                                    dataset_license_uri=args.dataset_license_uri,
+                                    dataset_attribution=args.dataset_attribution,
+                                    access_rights=args.access_rights, opendap=args.opendap,
+                                )
+                                for key in totals:
+                                    totals[key] += stats[key]
+                        metadata = store.metadata()
+                        store.set_metadata("minzoom", str(min(min(args.zoom), int(metadata.get("minzoom", min(args.zoom))))))
+                        store.set_metadata("maxzoom", str(max(max(args.zoom), int(metadata.get("maxzoom", max(args.zoom))))))
+                        store.set_metadata("datatiles:meteouniparthenope_domain_selection", ",".join(used))
+                        store.set_metadata(
+                            "datatiles:meteouniparthenope_frames",
+                            ",".join(f"{product}:{_instant_text(instant)}" for product, instant in frame_keys),
                         )
-                        for key in totals:
-                            totals[key] += stats[key]
-                metadata = store.metadata()
-                store.set_metadata("minzoom", str(min(args.zoom, int(metadata.get("minzoom", args.zoom)))))
-                store.set_metadata("maxzoom", str(max(args.zoom, int(metadata.get("maxzoom", args.zoom)))))
-                store.set_metadata("datatiles:meteouniparthenope_valid_time", _instant_text(identities[0].instant))
-                errors = store.validate(require_variable_semantics=True)
-                if errors:
-                    raise ConversionError("generated DataTiles failed validation: " + "; ".join(errors))
-            os.replace(staging, target)
-        finally:
-            staging.unlink(missing_ok=True)
-        print(f"updated {target}: {totals['variables']} variables, {totals['slices']} slices, {totals['tiles']} tiles")
+                        errors = store.validate(require_variable_semantics=True)
+                        if errors:
+                            raise ConversionError("generated DataTiles failed validation: " + "; ".join(errors))
+                    os.replace(staging, target)
+                    outputs.append(target)
+                finally:
+                    staging.unlink(missing_ok=True)
+        for target in outputs:
+            print(f"updated {target}")
+        print(f"total: {totals['variables']} variables, {totals['slices']} slices, {totals['tiles']} tiles")
         return 0
     except (ConversionError, OSError, ValueError) as exc:
         parser().error(str(exc))

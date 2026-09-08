@@ -81,6 +81,19 @@ This is an explicit algorithm, not a hidden portrayal step. The tile content sch
 
 The utilities reject rather than guess for unsupported curvilinear/2-D coordinates, antimeridian-crossing bboxes, and non-rectilinear grids.
 
+The Meteo@UniParthenope importer additionally accepts an inclusive
+`--zoom MIN,MAX` range and selects d01/d02/d03 per zoom from measured median
+grid resolution, using zoom 6 as the coarse-domain reference and the selected
+domain's measured extent. It records the mapping as metadata. Its default
+output is one `<prod>_<YYYYMMDD>Z<hhmm>.mbtiles` file per product/time frame;
+`--frame-storage single` explicitly combines frames while retaining their
+`product`, `domain`, and `valid_time` coordinates.
+
+For this provider-specific command only, `--dataset-license-uri` MAY be omitted
+when it is identical to `--source-license-uri`; the importer then records the
+source terms URI for the separately declared derived-dataset licence
+expression. A distinct derived-terms URI MUST be supplied explicitly.
+
 ## Resource and safety bounds
 
 `--max-tiles` limits accidental expansion at inappropriate zooms. `--bbox` can constrain the import domain. URL access has a timeout and is streamed to disk while hashing instead of being accumulated in memory. DNT1 itself retains its normal element and header bounds.

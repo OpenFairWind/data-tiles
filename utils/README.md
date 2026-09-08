@@ -136,8 +136,8 @@ Import utilities intentionally contain no DRM keys and no licence issuance logic
 
 ## Meteo@UniParthenope archive importer
 
-`meteouniparthenope2datatiles.py` imports one or more NetCDF products for the
-same forecast-valid instant into one DataTiles container. Source basenames MUST
+`meteouniparthenope2datatiles.py` imports Meteo@UniParthenope NetCDF frames.
+Source basenames MUST
 have this form:
 
 ```text
@@ -147,8 +147,7 @@ have this form:
 `prod` MUST be one of `wrf5`, `ww33`, `rms3`, `wcm3`, or `aiq3`; `domain` MUST
 be one of `d01`, `d02`, or `d03`. Availability of a product/domain pair is a
 property of the upstream archive and is not inferred by the utility. The
-filename instant MUST equal the single decoded NetCDF `time` coordinate. All
-sources supplied in one invocation MUST have the same instant.
+filename instant MUST equal the single decoded NetCDF `time` coordinate.
 
 The regular archive URL is:
 
@@ -161,21 +160,47 @@ are accepted by the same command:
 
 ```bash
 .venv/bin/python utils/meteouniparthenope2datatiles.py \
-  ./wrf5_d01_20260907Z1200.nc \
-  https://data.meteo.uniparthenope.it/files/ww33/d01/archive/2026/09/07/ww33_d01_20260907Z1200.nc \
-  --root ./weather-tiles --zoom 6 \
+  'data/meteouniparthenope/files/*.nc' \
+  --root ./data/meteouniparthenope/weather-tiles --zoom 6,18 \
+  --variables U10,V10,T2C,SLP,RH2,DELTA_RAIN \
   --source-license LicenseRef-MeteoUniParthenope-Terms \
   --source-license-uri https://www.meteo.uniparthenope.it/ \
   --source-attribution "Meteo@UniParthenope" \
-  --dataset-license LicenseRef-MeteoUniParthenope-Derived \
-  --dataset-license-uri https://www.meteo.uniparthenope.it/
+  --dataset-license LicenseRef-MeteoUniParthenope-Derived
 ```
 
-This writes or atomically extends:
+In this provider-specific profile, an omitted `--dataset-license-uri` defaults
+to `--source-license-uri`. Supply it explicitly whenever the derived-dataset
+terms have a distinct URI. This convenience does not infer that the source and
+derived licences are legally equivalent: their separate expressions remain
+mandatory and the operator remains responsible for selecting the applicable
+terms.
+
+The utility expands quoted local globs itself. `--variables` accepts a
+comma-separated list; repeatable `--variable` remains supported. `U10` and
+`V10` are compatibility aliases for `U10M` and `V10M`. Variables unavailable
+in a product are skipped; the importer does not manufacture WRF variables in
+wave products.
+
+`--zoom MIN,MAX` denotes every integer zoom in the inclusive range. For each
+product/frame, the importer reads the available domains' coordinate arrays,
+computes their median rectilinear cell resolution, and selects a coarse-to-fine
+domain for every zoom. Zoom 6 is the declared coarse-domain reference; finer
+transition zooms are derived from base-2 resolution ratios. Each zoom uses the
+selected domain's measured extent. The mapping is recorded in
+`datatiles:meteouniparthenope_domain_selection`; no silent domain fusion occurs.
+
+By default this writes one file per product and valid-time frame:
 
 ```text
-./weather-tiles/2026/09/07/20260907Z1200.mbtiles
+./data/meteouniparthenope/weather-tiles/2026/09/07/wrf5_20260907Z1200.mbtiles
 ```
+
+The naming rule is `<prod>_<YYYY><MM><DD>Z<hh><mm>.mbtiles`. Use
+`--frame-storage single` to place all requested products and valid times in
+`<root>/meteouniparthenope.mbtiles`. High zooms over a complete domain can
+create millions of tiles; `--max-tiles` deliberately requires the operator to
+acknowledge that expansion or constrain it with `--bbox`.
 
 Use `--opendap` when every supplied HTTP(S) source is an OPeNDAP dataset URL.
 The utility materializes the retrieved dataset as a temporary NetCDF snapshot,
@@ -193,3 +218,16 @@ the source metadata is not assumed to contain authoritative CF Standard Names.
 Rectilinear latitude/longitude values are resampled to Web Mercator tile pixel
 centres with explicitly recorded nearest-neighbour sampling. Values remain
 DNT1 numeric arrays; the utility does not create or store portrayal imagery.
+
+The verified wind example below is derived from stored zoom-10 `U10M` and
+`V10M` arrays, centred on 40° N, 14° E. Its exact input, algorithm, parameters,
+checksums, and reproduction command are in the [image register](../docs/images/meteo/README.md).
+
+![Zoom-10 U10M/V10M wind derivation](../docs/images/meteo/wrf5_20260907Z1200_z10_wind_40N_14E.png)
+
+The same import includes `CLDFRA_TOTAL`. The verified scalar output below uses
+a fixed 0–1 display ramp without altering the stored values. The producer
+declares `%`, while the observed stored range is fraction-like; this unresolved
+unit/value ambiguity is stated in the [image register](../docs/images/meteo/README.md).
+
+![Zoom-10 CLDFRA_TOTAL derivation](../docs/images/meteo/wrf5_20260907Z1200_z10_cldfra_total_40N_14E.png)

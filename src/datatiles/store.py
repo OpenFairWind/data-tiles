@@ -631,7 +631,10 @@ PRAGMA user_version = 7;
         if set_id is None:
             raise DataTilesError("coordinate set does not exist")
         with self.db:
-            self.db.execute("INSERT INTO datatiles_tile_provenance VALUES (?,?,?,?,?)", (z, x, y, set_id, entity_id))
+            self.db.execute(
+                "INSERT OR IGNORE INTO datatiles_tile_provenance VALUES (?,?,?,?,?)",
+                (z, x, y, set_id, entity_id),
+            )
 
     @staticmethod
     def tms_row(z: int, row: int, xyz: bool) -> int:

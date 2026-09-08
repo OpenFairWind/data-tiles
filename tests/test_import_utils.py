@@ -46,10 +46,10 @@ def test_meteouniparthenope_source_identity_and_output_path(tmp_path):
         "https://data.meteo.uniparthenope.it/files/wrf5/d01/archive/2026/09/07/wrf5_d01_20260907Z1200.nc"
     )
     assert (identity.product, identity.domain, identity.stamp) == ("wrf5", "d01", "20260907Z1200")
-    assert utility.output_path(tmp_path, identity) == tmp_path / "2026/09/07/20260907Z1200.mbtiles"
+    assert utility.output_path(tmp_path, identity) == tmp_path / "2026/09/07/wrf5_20260907Z1200.mbtiles"
 
 
-def test_meteouniparthenope_import_merges_models_for_one_valid_time(tmp_path):
+def test_meteouniparthenope_import_writes_frames_separately_by_default(tmp_path):
     import pytest
     np = pytest.importorskip("numpy")
     xr = pytest.importorskip("xarray")
@@ -83,16 +83,26 @@ def test_meteouniparthenope_import_merges_models_for_one_valid_time(tmp_path):
     result = subprocess.run(command, text=True, capture_output=True,
                             env={**os.environ, "PYTHONPATH": str(root / "src")})
     assert result.returncode == 0, result.stderr
-    output = output_root / "2026/09/07/20260907Z1200.mbtiles"
-    with DataTiles(output, read_only=True) as store:
+    wrf_output = output_root / "2026/09/07/wrf5_20260907Z1200.mbtiles"
+    wave_output = output_root / "2026/09/07/ww33_20260907Z1200.mbtiles"
+    with DataTiles(wrf_output, read_only=True) as store:
         assert store.validate(require_variable_semantics=True) == []
         profiles = store.content_profiles()
-        assert len(profiles) == 2
-        assert {(p["coordinates"]["product"], p["coordinates"]["domain"]) for p in profiles} == {
-            ("wrf5", "d01"), ("ww33", "d02")
-        }
+        assert len(profiles) == 1
+        assert profiles[0]["coordinates"]["product"] == "wrf5"
         assert {p["coordinates"]["valid_time"] for p in profiles} == {"2026-09-07T12:00:00.000000Z"}
-        assert store.db.execute("SELECT count(*) FROM datatiles_provenance_entities").fetchone()[0] == 2
+    with DataTiles(wave_output, read_only=True) as store:
+        assert store.content_profiles()[0]["coordinates"]["product"] == "ww33"
+
+    single_root = tmp_path / "single"
+    single_command = command + ["--frame-storage", "single"]
+    single_command[single_command.index(str(output_root))] = str(single_root)
+    result = subprocess.run(single_command, text=True, capture_output=True,
+                            env={**os.environ, "PYTHONPATH": str(root / "src")})
+    assert result.returncode == 0, result.stderr
+    with DataTiles(single_root / "meteouniparthenope.mbtiles", read_only=True) as store:
+        assert {(profile["coordinates"]["product"], profile["coordinates"]["domain"])
+                for profile in store.content_profiles()} == {("wrf5", "d01"), ("ww33", "d02")}
 
     appended = tmp_path / "rms3_d03_20260907Z1200.nc"
     xr.Dataset(
@@ -105,9 +115,70 @@ def test_meteouniparthenope_import_merges_models_for_one_valid_time(tmp_path):
     result = subprocess.run(append_command, text=True, capture_output=True,
                             env={**os.environ, "PYTHONPATH": str(root / "src")})
     assert result.returncode == 0, result.stderr
-    with DataTiles(output, read_only=True) as store:
-        assert len(store.content_profiles()) == 3
+    with DataTiles(output_root / "2026/09/07/rms3_20260907Z1200.mbtiles", read_only=True) as store:
+        assert len(store.content_profiles()) == 1
         assert store.validate(require_variable_semantics=True) == []
+
+
+def test_meteouniparthenope_cli_parses_ranges_csv_aliases_and_quoted_glob(tmp_path):
+    utility = load_meteo_utility()
+    assert utility.parse_zoom_range("6,8") == (6, 7, 8)
+    assert utility.parse_variables(["U10,V10,T2C"], None) == ["U10", "V10", "T2C"]
+    (tmp_path / "b.nc").touch(); (tmp_path / "a.nc").touch()
+    assert utility.expand_sources([str(tmp_path / "*.nc")]) == [str(tmp_path / "a.nc"), str(tmp_path / "b.nc")]
+    parsed = utility.parser().parse_args([
+        "wrf5_d01_20260907Z1200.nc", "--root", str(tmp_path),
+        "--source-license", "LicenseRef-Source", "--source-license-uri", "https://example.test/terms",
+        "--source-attribution", "Provider", "--dataset-license", "LicenseRef-Derived",
+    ])
+    assert parsed.dataset_license_uri is None
+
+
+def test_meteouniparthenope_domain_selection_uses_measured_resolution():
+    import pytest
+    xr = pytest.importorskip("xarray")
+    utility = load_meteo_utility()
+    identity = utility.parse_source_identity("wrf5_d01_20260907Z1200.nc")
+    records = []
+    for domain, step in (("d01", 0.12), ("d02", 0.03), ("d03", 0.006)):
+        ds = xr.Dataset(coords={"latitude": [40.0, 40.0 + step], "longitude": [14.0, 14.0 + step]})
+        records.append((domain, utility.SourceIdentity(identity.product, domain, identity.instant), ds, None))
+    chosen = utility.domains_by_zoom(records, tuple(range(6, 11)))
+    assert chosen[6][1].domain == "d01"
+    assert chosen[8][1].domain == "d02"
+    assert chosen[10][1].domain == "d03"
+
+
+def test_meteouniparthenope_cloud_renderer_is_deterministic(tmp_path):
+    import pytest
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("PIL")
+    from datatiles import DataTiles, encode_numeric_tile
+
+    source = tmp_path / "cloud.mbtiles"
+    coordinates = {"variable": "wrf5_cldfra_total", "product": "wrf5", "domain": "d03",
+                   "valid_time": "2026-09-07T12:00:00Z"}
+    values = np.linspace(0.0, 1.0, 256 * 256, dtype="float32")
+    blob = encode_numeric_tile(values.tolist(), (256, 256), dtype="float32", unit="%")
+    with DataTiles(source, create=True, tile_format="application/vnd.datatiles.numeric") as store:
+        for name, value_type in (("variable", "text"), ("product", "text"), ("domain", "text"),
+                                 ("valid_time", "datetime")):
+            store.add_dimension(name, value_type)
+        for x in range(1, 4):
+            for y in range(1, 4):
+                store.put(2, x, y, blob, coordinates, xyz=True)
+    root = Path(__file__).parents[1]
+    output = tmp_path / "cloud.png"
+    command = [sys.executable, str(root / "utils/render_meteouniparthenope_cloud.py"),
+               str(source), str(output), "--zoom", "2", "--lat", "0", "--lon", "0",
+               "--valid-time", "2026-09-07T12:00:00Z"]
+    env = {**os.environ, "PYTHONPATH": str(root / "src")}
+    first = subprocess.run(command, text=True, capture_output=True, env=env)
+    assert first.returncode == 0, first.stderr
+    digest = hashlib.sha256(output.read_bytes()).hexdigest()
+    second = subprocess.run(command, text=True, capture_output=True, env=env)
+    assert second.returncode == 0, second.stderr
+    assert hashlib.sha256(output.read_bytes()).hexdigest() == digest
 
 
 def test_local_source_identity_and_checksum(tmp_path):

@@ -141,6 +141,18 @@ Zarr v2 and v3 differ in metadata and fill-value behavior. Use `--zarr-format 2`
 
 The output is `application/vnd.datatiles.numeric` using DNT1. A color ramp, contour layer, shaded relief or nautical-style display is a reproducible *derivation* from the numeric evidence. Converting scientific source grids directly into PNG tiles would destroy machine-readable values and undermine the interoperability objective of this chapter.
 
+The repository's Meteo@UniParthenope wind figure demonstrates this separation:
+`U10M` and `V10M` remain DNT1 arrays, while
+`utils/render_meteouniparthenope_wind.py` creates a checksum-registered PNG as
+an explicit downstream speed-and-direction portrayal. Its input, algorithm,
+parameters, limitations, and command are in the
+[derivation register](../images/meteo/README.md).
+
+The register also includes `CLDFRA_TOTAL`. Its source declares `%` while its
+observed values are fraction-like. The reference renderer preserves and labels
+that ambiguity rather than silently applying a factor of 100; resolving the
+producer metadata is a scientific curation task, not a portrayal heuristic.
+
 ## 10. Limits are part of the convention
 
 The first utility profile intentionally rejects unsupported geometry rather than approximating it silently. Curvilinear coordinates, rotated grids, projected source grids, antimeridian-spanning extents and conservative cell-area remapping need explicit algorithms and provenance. `--max-tiles` is also part of the safety model: a mistaken high zoom must not expand an import without a deliberate operator decision.
