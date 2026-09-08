@@ -1,17 +1,21 @@
-# Direct NetCDF archive delivery demo
+# Meteo@UniParthenope direct NetCDF archive demo
 
-This demo exercises the Online Delivery server without first converting its source into a DataTiles or MBTiles file. It creates a deterministic, explicitly synthetic CF-style NetCDF frame in the required product/domain archive tree and requests numeric DNT1 tiles directly from that immutable frame. It stores no image tiles and applies no portrayal.
+This demo exercises the Online Delivery server directly against a real Meteo@UniParthenope WRF NetCDF frame. It does not first convert that source into DataTiles or MBTiles, stores no image tiles, and applies only a client-side diagnostic portrayal to the numeric DNT1 response.
 
-The analytic temperature and wind fields are software fixtures, not observations or forecasts. Their horizontal source CRS is EPSG:4326; the server samples them at EPSG:3857 WebMercatorQuad pixel centres using `nearest-neighbour-at-Web-Mercator-pixel-centres-v1`. The output is converted to `float32`, preserves the declared unit, and uses the DNT1 nodata value outside the source extent. The demo is uncertified and MUST NOT be used for navigation.
+The immutable `sources.lock.json` records the exact provider archive URL, byte count, SHA-256 checksum, attribution, and terms URL for `wrf5_d01_20260907Z1200.nc`. `acquire.py` first checks the already-downloaded `data/meteouniparthenope/files` copy. It reuses that file only when its SHA-256 matches; otherwise it downloads the locked URL into a temporary file, verifies the checksum, and atomically installs it under the server's required archive hierarchy. This makes repeated executions independent of a mutable “latest” listing while retaining exact source identity.
 
-From the repository root, install the server dependencies and generate the fixture:
+The source exposes a rectilinear EPSG:4326 grid. The server samples EPSG:3857 WebMercatorQuad pixel centres using `nearest-neighbour-at-Web-Mercator-pixel-centres-v1`, returns `float32` DNT1 numeric arrays, preserves each variable's unit, and marks cells outside the source extent as nodata. The upstream product and this visualization are uncertified and MUST NOT be used for navigation.
+
+## Reproduce and run
+
+From the repository root:
 
 ```bash
 python -m pip install -e '.[server]'
-python demo/netcdf-archive/prepare.py --root data/netcdf-archive-demo
+python demo/netcdf-archive/acquire.py
 ```
 
-Start the application, then open `http://127.0.0.1:8080/` for the interactive numeric preview:
+Start the application:
 
 ```bash
 DATATILES_NETCDF_ROOT="$PWD/data/netcdf-archive-demo" \
@@ -22,22 +26,17 @@ DATATILES_CACHE_DIR="$PWD/data/netcdf-archive-cache" \
 python -m uvicorn server.app:app --host 127.0.0.1 --port 8080
 ```
 
-In another terminal, discover the configured variables and frame, then retrieve one tile:
+Open `http://127.0.0.1:8080/`—not the HTML file directly—to discover the real `wrf5/d01/20260907Z1200` frame and render `T2C`, `RH2`, `U10M`, `V10M`, `SLP`, or `CLDFRA_TOTAL`. If `server/netcdf-preview.html` is opened through `file://`, it attempts the same loopback API and displays an explicit server-start instruction when the application is unavailable.
+
+Machine-readable verification:
 
 ```bash
 curl http://127.0.0.1:8080/api/netcdf
 curl -D data/netcdf-archive-demo/tile.headers \
-  -o data/netcdf-archive-demo/air-temperature.dnt1 \
-  'http://127.0.0.1:8080/api/netcdf/demo_weather/d01/20260907Z1200/tiles/5/16/11?variable=air_temperature'
+  -o data/netcdf-archive-demo/T2C.dnt1 \
+  'http://127.0.0.1:8080/api/netcdf/wrf5/d01/20260907Z1200/tiles/5/16/11?variable=T2C'
 ```
 
 The response media type is `application/vnd.datatiles.dnt1`. Its headers declare the source CRS, output CRS, derivation algorithm, cache policy, and content ETag. `/docs` exposes the generated FastAPI contract.
 
-To exercise representative Meteo@UniParthenope inputs already present in a local development workspace, copy—not move—the files into the configured archive tree while retaining their original checksums. For example:
-
-```text
-data/netcdf-archive/wrf5/d02/archive/2026/09/07/wrf5_d02_20260907Z1200.nc
-data/netcdf-archive/ww33/d01/archive/2026/09/07/ww33_d01_20260907Z1200.nc
-```
-
-Declare only approved variables for `wrf5` and `ww33` in a separate product configuration derived from `server/netcdf-products.example.json`. Upstream licence, attribution, access conditions, source checksum, datum, native resolution, and scientific limitations remain publication requirements; the direct-delivery endpoint does not invent that evidence.
+The lock also records SHA-256 `5a31d53ac66141f9ef34d6c773ec47cb8294f0f0b6f069fe4e15b0372ced791e` for the uncompressed 256 × 256 `T2C/5/16/11` DNT1 derivation. Reproducibility here establishes byte identity of the retained input and deterministic derivation for the declared software/runtime. It does not establish observational validity, forecast skill, official-chart status, or permission beyond the provider terms. Publication workflows MUST retain the source checksum, terms, attribution, datum, native resolution, processing parameters, and limitations.

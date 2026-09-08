@@ -1,6 +1,6 @@
 # Getting started
 
-For network publication after creating and validating a container, install `.[server]` and follow the [Online server quick start](../README.md#online-server-quick-start). The server reads scientific tiles unchanged at `/api/datasets/{dataset}/tiles/{z}/{x}/{y}` and derives configured PNG/WebP portrayals at `/maps/{layer}/{z}/{x}/{y}.{format}`. It can also derive numeric DNT1 tiles directly from an allowlisted NetCDF archive; the [direct NetCDF demo](../demo/netcdf-archive/README.md) provides a reproducible example. It does not store derived scientific or image tiles. Full configuration and deployment guidance is in the [reference server guide](../server/README.md).
+For network publication after creating and validating a container, install `.[server]` and follow the [Online server quick start](../README.md#online-server-quick-start). The server reads scientific tiles unchanged at `/api/datasets/{dataset}/tiles/{z}/{x}/{y}` and derives configured PNG/WebP portrayals at `/maps/{layer}/{z}/{x}/{y}.{format}`. It can also derive numeric DNT1 tiles directly from an allowlisted NetCDF archive; the [direct NetCDF demo](../demo/netcdf-archive/README.md) provides a checksum-locked Meteo@UniParthenope example. It does not store derived scientific or image tiles. Full configuration and deployment guidance is in the [reference server guide](../server/README.md).
 
 Install Python 3.10 or later and run `python -m pip install -e .`.
 

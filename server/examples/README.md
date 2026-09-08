@@ -16,8 +16,8 @@ For direct NetCDF delivery, generate and run the repository's [archive demo](../
 
 ```bash
 curl http://localhost:8080/api/netcdf
-curl -o air-temperature.dnt1 \
-  'http://localhost:8080/api/netcdf/demo_weather/d01/20260907Z1200/tiles/5/16/11?variable=air_temperature'
+curl -o T2C.dnt1 \
+  'http://localhost:8080/api/netcdf/wrf5/d01/20260907Z1200/tiles/5/16/11?variable=T2C'
 ```
 
 This response is a newly derived numeric array. It is not an unchanged stored DataTiles payload and is not a rendered map image.

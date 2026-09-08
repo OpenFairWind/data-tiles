@@ -30,7 +30,10 @@ def configured_service(tmp_path, monkeypatch):
 
 def test_discovery_render_cache_and_conditionals(tmp_path, monkeypatch):
     client, cache = configured_service(tmp_path, monkeypatch)
-    assert "DataTiles · direct NetCDF delivery" in client.get("/", headers={"Accept": "text/html"}).text
+    html = client.get("/", headers={"Accept": "text/html"}).text
+    assert "DataTiles · direct NetCDF delivery" in html
+    assert "location.protocol==='file:'" in html
+    assert "Start the demo server at http://127.0.0.1:8080" in html
     assert client.get("/", headers={"Accept": "application/json"}).json()["version"] == "1.2.0"
     assert client.get("/healthz").status_code == 200
     assert client.get("/readyz").status_code == 200

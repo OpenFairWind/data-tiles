@@ -1,8 +1,12 @@
 {
-  "demo_weather": {
+  "wrf5": {
     "variables": [
-      "air_temperature",
-      "wind_speed"
+      "T2C",
+      "RH2",
+      "U10M",
+      "V10M",
+      "SLP",
+      "CLDFRA_TOTAL"
     ]
   }
 }

@@ -79,7 +79,7 @@ Optional import utilities under `utils/` convert local or URL-identified NetCDF,
 
 The Online Delivery server can also sample numeric DNT1 tiles directly from a configured `<product>/<domain>/archive/<YYYY>/<MM>/<DD>` NetCDF tree without first creating a DataTiles container. This deliberately narrower operational path uses an explicit per-product variable allowlist and declares its CRS and nearest-neighbour sampling behavior; see `server/README.md#direct-netcdf-archive-delivery`.
 
-A complete runnable example, including deterministic fixture generation, archive discovery, server launch, and DNT1 retrieval, is available in [`demo/netcdf-archive`](demo/netcdf-archive/README.md).
+A complete runnable example, including checksum-locked Meteo@UniParthenope acquisition, archive discovery, server launch, and DNT1 retrieval, is available in [`demo/netcdf-archive`](demo/netcdf-archive/README.md).
 
 The [Meteo@UniParthenope Leaflet demonstration](demo/weather/README.md)
 serves the generated WRF frame through the scientific tile endpoint. The

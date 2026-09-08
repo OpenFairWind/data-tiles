@@ -1,0 +1,20 @@
+{
+  "profile": "meteouniparthenope-netcdf-demo-source-lock-v1",
+  "created": "2026-09-08",
+  "verification": {
+    "algorithm": "nearest-neighbour-at-Web-Mercator-pixel-centres-v1",
+    "compression": "none",
+    "tile": "T2C/5/16/11",
+    "tile_sha256": "5a31d53ac66141f9ef34d6c773ec47cb8294f0f0b6f069fe4e15b0372ced791e"
+  },
+  "sources": [
+    {
+      "archive_path": "wrf5/d01/archive/2026/09/07/wrf5_d01_20260907Z1200.nc",
+      "bytes": 11302954,
+      "provider": "Meteo@UniParthenope",
+      "sha256": "9fc2f0c4d4327e3b6b139c1e4b9936a68cb1ef1c5e70ccb5562e6600825e22e1",
+      "terms_uri": "https://www.meteo.uniparthenope.it/",
+      "url": "https://data.meteo.uniparthenope.it/files/wrf5/d01/archive/2026/09/07/wrf5_d01_20260907Z1200.nc"
+    }
+  ]
+}

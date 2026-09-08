@@ -2,7 +2,7 @@
 
 The Online Delivery profile adds network publication without changing the scientific identity of a DataTiles tile. The same canonical `(z,x,y,{dimensions})` address MAY be exposed as a scientific representation for client-side portrayal and as one or more server-rendered portrayals.
 
-The reference server additionally supports direct, on-demand derivation of DNT1 numeric tiles from explicitly configured NetCDF archive frames. This transport extension does not make a NetCDF source a DataTiles container. A service using it MUST constrain variables through an allowlist, MUST identify the source and output CRSs and the sampling algorithm, MUST preserve nodata and units, MUST reject implicit selection of non-spatial dimensions, and MUST expose the result as scientific data rather than a portrayal. The reference path and derivation contract are documented in `server/README.md`.
+The reference server additionally supports direct, on-demand derivation of DNT1 numeric tiles from explicitly configured NetCDF archive frames. This transport extension does not make a NetCDF source a DataTiles container. A service using it MUST constrain variables through an allowlist, MUST identify the source and output CRSs and the sampling algorithm, MUST preserve nodata and units, MUST reject implicit selection of non-spatial dimensions, and MUST expose the result as scientific data rather than a portrayal. The reference path and derivation contract are documented in `server/README.md`; `demo/netcdf-archive` exercises it with a checksum-locked Meteo@UniParthenope archive frame.
 
 ## Rendering modes
 

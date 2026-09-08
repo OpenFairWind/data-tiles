@@ -13,7 +13,7 @@ python -m compileall -q src tests utils
 python -m pytest --cov=datatiles --cov-branch --cov-report=term-missing
 ```
 
-The suite covers storage and MBTiles views, physical-table MBTiles fallback and rejection of non-representable payloads, typed and interval coordinates, DNT1 cross-product and hostile-input cases, CLI round trips, HTTP discovery and errors, scientific-analysis endpoints, specification/documentation contracts, playground contracts, FAIR validation, and deterministic double builds. Coverage is diagnostic evidence, not a substitute for the scientific acceptance criteria in `reproducibility.md`.
+The suite covers storage and MBTiles views, physical-table MBTiles fallback and rejection of non-representable payloads, typed and interval coordinates, DNT1 cross-product and hostile-input cases, CLI round trips, HTTP discovery and errors, direct NetCDF archive acquisition/derivation, scientific-analysis endpoints, specification/documentation contracts, playground contracts, FAIR validation, and deterministic double builds. Coverage is diagnostic evidence, not a substitute for the scientific acceptance criteria in `reproducibility.md`.
 
 ## CI workflow
 
