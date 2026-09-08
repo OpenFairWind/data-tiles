@@ -25,6 +25,9 @@ The reference nautical-map demonstration is an uncertified aid and MUST NOT be r
 - Keep source acquisition immutable and checksum-locked. The Gaeta-to-Maratea products are explicitly not for navigation.
 - Maintain FAIR metadata and validation. Stable identifiers, license, provenance, CRS, dimensions, units, checksums, and access links are functional requirements.
 - Keep the core Python package dependency-free. Optional demo and test dependencies belong in their declared extras.
+- Python software MUST use the standard `logging` framework for diagnostics,
+  status, and command output; direct `print()` and direct writes to
+  `sys.stdout` or `sys.stderr` are not permitted.
 
 ## Change workflow
 

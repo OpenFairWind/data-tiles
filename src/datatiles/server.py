@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import importlib.resources
 import json
+import logging
 import mimetypes
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -12,6 +13,8 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 from .store import DataTiles, DataTilesError
 from .profile import parse_point, profile_csv, profile_svg, sample_profile
 from .analysis import contours, point_values, query_areas, stored_vector_features, surface_grid
+
+LOGGER = logging.getLogger(__name__)
 
 CONFORMANCE = [
     "http://www.opengis.net/spec/ogcapi-common-1/1.0/conf/core",
@@ -233,11 +236,13 @@ def main(argv: list[str] | None = None) -> int:
     except (DataTilesError,OSError) as exc:
         p.error(str(exc))
     server = ThreadingHTTPServer((args.host, args.port), handler_for(args.file))
-    print(f"Serving {args.file} at http://{args.host}:{args.port}")
+    LOGGER.info("Serving %s at http://%s:%d", args.file, args.host, args.port)
     try: server.serve_forever()
     except KeyboardInterrupt: pass
     finally: server.server_close()
     return 0
 
 
-if __name__ == "__main__": raise SystemExit(main())
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    raise SystemExit(main())

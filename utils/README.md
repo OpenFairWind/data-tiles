@@ -186,9 +186,22 @@ wave products.
 product/frame, the importer reads the available domains' coordinate arrays,
 computes their median rectilinear cell resolution, and selects a coarse-to-fine
 domain for every zoom. Zoom 6 is the declared coarse-domain reference; finer
-transition zooms are derived from base-2 resolution ratios. Each zoom uses the
-selected domain's measured extent. The mapping is recorded in
-`datatiles:meteouniparthenope_domain_selection`; no silent domain fusion occurs.
+transition zooms are derived from base-2 resolution ratios. At a d02 zoom, the
+output covers d01: finite d02 samples override nearest-neighbour d01 samples.
+At a d03 zoom, the output analogously covers d02, with finite d03 samples
+overriding d02. Coordinate values such as `d01+d02` and `d02+d03` identify
+these compositions. There is no boundary blending. The exact mapping is
+recorded in `datatiles:meteouniparthenope_domain_selection`.
+
+When `--zoom` is omitted, the importer calculates a native Web Mercator zoom
+for every available domain from the median latitude/longitude cell spacing and
+the latitude-dependent Web Mercator ground resolution. The automatic inclusive
+range runs from `floor(coarsest native zoom)` through `ceil(finest native
+zoom)`, clamped to 0–22. Each zoom uses the domain whose native-resolution zoom
+is closest plus its immediate coarser domain as a finite-value fallback. The
+coarser extent determines the tiles emitted at a nested zoom. Metadata records
+`automatic:native-web-mercator-pixel-resolution-v1`; this is a sampling choice,
+not a claim that the model has acquired finer scientific resolution.
 
 By default this writes one file per product and valid-time frame:
 

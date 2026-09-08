@@ -14,7 +14,8 @@ export function clientLayer(L, baseUrl, dataset, portrayal, options = {}) {
     createTile(coords, done) {
       const tile = document.createElement("canvas");
       tile.width = tile.height = options.tileSize || 256;
-      api.fetchDNT1(dataset, coords.z, coords.x, coords.y, dimensions)
+      const selected = typeof dimensions === "function" ? dimensions(coords) : dimensions;
+      api.fetchDNT1(dataset, coords.z, coords.x, coords.y, selected)
         .then(d => { renderScalarToCanvas(d, portrayal, tile); done(null, tile); })
         .catch(err => done(err, tile));
       return tile;

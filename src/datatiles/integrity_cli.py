@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sqlite3
 import sys
 from pathlib import Path
@@ -11,6 +12,8 @@ from .integrity import (
     generate_ed25519_keypair, list_stored_signatures, load_private_key, load_public_key,
     store_envelope, verify_database_against_envelope,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _db(path: str, *, writable: bool = False) -> sqlite3.Connection:
@@ -27,7 +30,7 @@ def _dump(value, output: str | None = None):
     if output:
         Path(output).write_text(text, encoding="utf-8")
     else:
-        sys.stdout.write(text)
+        LOGGER.info(text.rstrip("\n"))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -90,10 +93,11 @@ def main(argv: list[str] | None = None) -> int:
                 result = verify_database_against_envelope(db, envelope, public_key=key, expected_key_id=args.require_key_id, chunk_size=args.chunk_size)
             _dump(result); return 0 if result["valid"] else 2
     except (IntegrityError, sqlite3.Error, OSError, ValueError) as exc:
-        print(f"datatiles-integrity: {exc}", file=sys.stderr)
+        LOGGER.error("datatiles-integrity: %s", exc)
         return 2
     return 2
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     raise SystemExit(main())

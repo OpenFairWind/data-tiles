@@ -6,9 +6,12 @@ import argparse
 import base64
 import hashlib
 import json
+import logging
 from pathlib import Path
 
 from datatiles import DataTiles, decode_numeric_tile, encode_numeric_tile
+
+LOGGER = logging.getLogger(__name__)
 
 VALID_TIME=("2026-08-27T00:00:00Z","2026-08-27T06:00:00Z",True,True)
 
@@ -109,7 +112,7 @@ def verify(path: Path) -> None:
         if not store.fair_report()["passes"]: raise SystemExit("FAIR object-boundary checks failed")
         columns=[row[1] for row in store.db.execute("PRAGMA table_info(tiles)")]
         if columns!=["zoom_level","tile_column","tile_row","tile_data"]: raise SystemExit("MBTiles interface mismatch")
-    print(f"verified {path}")
+    LOGGER.info("verified %s", path)
 
 
 def main() -> int:
@@ -120,4 +123,6 @@ def main() -> int:
     return 0
 
 
-if __name__=="__main__": raise SystemExit(main())
+if __name__=="__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    raise SystemExit(main())

@@ -83,11 +83,23 @@ The utilities reject rather than guess for unsupported curvilinear/2-D coordinat
 
 The Meteo@UniParthenope importer additionally accepts an inclusive
 `--zoom MIN,MAX` range and selects d01/d02/d03 per zoom from measured median
-grid resolution, using zoom 6 as the coarse-domain reference and the selected
-domain's measured extent. It records the mapping as metadata. Its default
+grid resolution, using zoom 6 as the coarse-domain reference. A finer domain is
+nested over its immediate coarser domain: the coarser extent is tiled first and
+finite finer samples override coincident pixels using the same declared
+nearest-neighbour sampling. The importer does not blend values across the
+boundary. It records the ordered composition as metadata and tile provenance.
+Its default
 output is one `<prod>_<YYYYMMDD>Z<hhmm>.mbtiles` file per product/time frame;
 `--frame-storage single` explicitly combines frames while retaining their
 `product`, `domain`, and `valid_time` coordinates.
+
+If `--zoom` is absent, it derives native zoom estimates from each domain's
+median rectilinear cell spacing and latitude-dependent Web Mercator pixel
+resolution. It emits the inclusive range from the floored coarsest estimate to
+the ceiled finest estimate (bounded to 0–22), choosing the closest native domain
+at each zoom and its immediate coarser domain as the surrounding fallback. The
+algorithm identifier and exact ordered composition are stored in metadata,
+content schema, activity provenance, and contributing tile-source links.
 
 For this provider-specific command only, `--dataset-license-uri` MAY be omitted
 when it is identical to `--source-license-uri`; the importer then records the

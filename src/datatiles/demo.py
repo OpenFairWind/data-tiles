@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import logging
 import math
 import os
 import platform
@@ -22,6 +23,8 @@ from typing import Any, Callable
 from . import __version__
 from .numeric import encode_numeric_tile
 from .store import DataTiles
+
+LOGGER = logging.getLogger(__name__)
 
 
 def sha256(path: Path) -> str:
@@ -83,12 +86,12 @@ def download(url: str, target: Path) -> dict[str, Any]:
             if exc.code not in (429,500,502,503,504) or attempt==4:raise
             retry_after=exc.headers.get("Retry-After")
             delay=min(30,max(2,int(retry_after) if retry_after and retry_after.isdigit() else attempt*5))
-            print(f"transient HTTP {exc.code}; retrying in {delay} seconds",file=sys.stderr)
+            LOGGER.warning("transient HTTP %s; retrying in %s seconds", exc.code, delay)
             time.sleep(delay)
         except (urllib.error.URLError,TimeoutError) as exc:
             if attempt==4:raise
             delay=min(30,attempt*5)
-            print(f"transient network error ({exc}); retrying in {delay} seconds",file=sys.stderr)
+            LOGGER.warning("transient network error (%s); retrying in %s seconds", exc, delay)
             time.sleep(delay)
     temporary.replace(target)
     return {"request_url": url, "final_url": final_url, "sha256": sha256(target),
@@ -179,7 +182,7 @@ def acquire(config_path: Path, work: Path, expected_lock: Path | None = None) ->
                 "service":"WCS", "version":"1.0.0", "request":"GetCoverage", "coverage":coverage,
                 "crs":"EPSG:4326", "bbox":f"{west},{south},{east},{north}", "width":config["grid"]["width"],
                 "height":config["grid"]["height"], "format":"GeoTIFF"})
-        print(f"acquire {key}: {url}")
+        LOGGER.info("acquire %s: %s", key, url)
         info = download(url, destination / filename)
         validate_raw(key, destination / filename)
         entries[key] = {"file":filename, "request_url":url, "sha256":info["sha256"], "bytes":info["bytes"]}
@@ -704,7 +707,7 @@ def verify(config_path: Path, work: Path) -> None:
     bundle_info=json.loads((work/(bundle_name+".sha256")).read_text())
     if sha256(work/bundle_info["file"]) != bundle_info["sha256"]: errors.append("evidence bundle checksum")
     if errors: raise RuntimeError("verification failed: "+", ".join(errors))
-    print(f"verified {output} sha256={manifest['output_sha256']}")
+    LOGGER.info("verified %s sha256=%s", output, manifest["output_sha256"])
 
 
 def clean(config_path: Path, work: Path) -> None:
@@ -731,7 +734,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command=="clean": clean(args.config,args.work)
         return 0
     except (OSError,ValueError,RuntimeError) as exc:
-        print(f"error: {exc}",file=sys.stderr); return 1
+        LOGGER.error("error: %s", exc); return 1
 
 
-if __name__=="__main__": raise SystemExit(main())
+if __name__=="__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    raise SystemExit(main())

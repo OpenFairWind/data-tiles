@@ -6,6 +6,7 @@ import csv
 import hashlib
 import io
 import json
+import logging
 import math
 from html import escape
 from pathlib import Path
@@ -13,6 +14,8 @@ from typing import Any
 
 from .numeric import NumericTile, decode_numeric_tile
 from .store import DataTiles, DataTilesError
+
+LOGGER = logging.getLogger(__name__)
 
 CLASS_COLORS = {0:"#d2d2d2",1:"#aaaaaa",2:"#af916e",3:"#695546",4:"#e0cc91",
                 5:"#a09178",6:"#736964",7:"#5a9646",8:"#23874b",9:"#cd5564"}
@@ -152,10 +155,12 @@ def main(argv: list[str]|None=None) -> int:
         with DataTiles(args.file) as store: profile=sample_profile(store,parse_point(args.start),parse_point(args.end),samples=args.samples,zoom=args.zoom)
         content=json.dumps(profile,indent=2,ensure_ascii=False)+"\n" if args.format=="json" else profile_csv(profile) if args.format=="csv" else profile_svg(profile)
         if args.output: args.output.write_text(content)
-        else: print(content)
+        else: LOGGER.info(content.rstrip("\n"))
         return 0
     except (OSError,DataTilesError,ValueError) as exc:
         parser.error(str(exc)); return 2
 
 
-if __name__=="__main__": raise SystemExit(main())
+if __name__=="__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    raise SystemExit(main())

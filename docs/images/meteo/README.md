@@ -1,6 +1,6 @@
 # Meteo@UniParthenope wind derivation
 
-`wrf5_20260907Z1200_z10_wind_40N_14E.png` is a reproducible display derivation from the numeric `U10M` and `V10M` arrays in `data/meteouniparthenope/weather-tiles/2026/09/07/wrf5_20260907Z1200.mbtiles`. The current source container SHA-256 is `d0fc953116faf8bbe853fc957c91edb579de1fba6ce034cf1c3d70bfbdce1931`; the PNG SHA-256 is `6819b91848ea88829c8fd8932ae7cbe95e284359dc141a0561217c43def2c8d9`.
+`wrf5_20260907Z1200_z10_wind_40N_14E.png` is a reproducible display derivation from the numeric `U10M` and `V10M` arrays in `data/meteouniparthenope/weather-tiles/2026/09/07/wrf5_20260907Z1200.mbtiles`. The source-container snapshot used for this registered rendering has SHA-256 `d0fc953116faf8bbe853fc957c91edb579de1fba6ce034cf1c3d70bfbdce1931`; the PNG SHA-256 is `6819b91848ea88829c8fd8932ae7cbe95e284359dc141a0561217c43def2c8d9`.
 
 The renderer decodes DNT1 dtype, shape, byte order, compression, nodata, scale, offset, and unit. It computes speed as `sqrt(U10M² + V10M²)`, maps the finite speed range 1.3504–3.1448 m s-1 linearly from blue to yellow, applies bilinear interpolation only to the displayed RGB field, and overlays regularly subsampled unit-direction arrows. The 768 × 768 map area is centred on 40° N, 14° E at Web Mercator zoom 10. The white marker identifies that centre. The display is an uncertified model visualization and is not for navigation.
 

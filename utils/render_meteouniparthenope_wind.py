@@ -5,8 +5,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import logging
 import math
 from pathlib import Path
+
+LOGGER = logging.getLogger(__name__)
 
 
 def xyz_at(lon: float, lat: float, zoom: int) -> tuple[int, int, float, float]:
@@ -104,10 +107,11 @@ def main() -> int:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     canvas.save(args.output, optimize=True)
     digest = hashlib.sha256(args.output.read_bytes()).hexdigest()
-    print(json.dumps({"output": str(args.output), "sha256": digest, "speed_min": lo,
-                      "speed_max": hi, "center": [args.lat, args.lon]}, sort_keys=True))
+    LOGGER.info(json.dumps({"output": str(args.output), "sha256": digest, "speed_min": lo,
+                            "speed_max": hi, "center": [args.lat, args.lon]}, sort_keys=True))
     return 0
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     raise SystemExit(main())

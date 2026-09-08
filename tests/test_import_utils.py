@@ -147,6 +147,15 @@ def test_meteouniparthenope_domain_selection_uses_measured_resolution():
     assert chosen[6][1].domain == "d01"
     assert chosen[8][1].domain == "d02"
     assert chosen[10][1].domain == "d03"
+    assert utility.optimal_zoom_range(records) == tuple(range(3, 9))
+    automatic = utility.domains_by_zoom(records, utility.optimal_zoom_range(records), native_anchors=True)
+    assert automatic[3][1].domain == "d01"
+    assert automatic[8][1].domain == "d03"
+    assert utility.parser().parse_args([
+        "wrf5_d01_20260907Z1200.nc", "--root", ".", "--source-license", "LicenseRef-X",
+        "--source-license-uri", "https://example.test", "--source-attribution", "X",
+        "--dataset-license", "LicenseRef-Y",
+    ]).zoom is None
 
 
 def test_meteouniparthenope_cloud_renderer_is_deterministic(tmp_path):
@@ -179,6 +188,54 @@ def test_meteouniparthenope_cloud_renderer_is_deterministic(tmp_path):
     second = subprocess.run(command, text=True, capture_output=True, env=env)
     assert second.returncode == 0, second.stderr
     assert hashlib.sha256(output.read_bytes()).hexdigest() == digest
+
+
+def test_meteouniparthenope_nested_domain_tiles_use_coarser_fallback(tmp_path):
+    import math
+    import pytest
+    np = pytest.importorskip("numpy")
+    xr = pytest.importorskip("xarray")
+    from datatiles import DataTiles, decode_numeric_tile
+
+    coordinates = {
+        "time": xr.DataArray([1110492], dims="time", attrs={"units": "hours since 1900-01-01 00:00:0.0"}),
+    }
+    sources = []
+    for domain, axis, value in (("d01", [0.0, 1.0], 10.0),
+                                ("d02", [0.25, 0.5, 0.75], 20.0)):
+        path = tmp_path / f"wrf5_{domain}_20260907Z1200.nc"
+        xr.Dataset(
+            {"T2C": (("time", "latitude", "longitude"),
+                     np.full((1, len(axis), len(axis)), value, dtype="float32"), {"units": "C"})},
+            coords={**coordinates, "latitude": axis, "longitude": axis},
+        ).to_netcdf(path)
+        sources.append(path)
+    root = Path(__file__).parents[1]
+    command = [sys.executable, str(root / "utils/meteouniparthenope2datatiles.py"),
+               *(str(path) for path in sources), "--root", str(tmp_path / "tiles"),
+               "--zoom", "8", "--tile-size", "8", "--variables", "T2C",
+               "--source-license", "LicenseRef-Fixture", "--source-license-uri", "https://example.test/source",
+               "--source-attribution", "Fixture", "--dataset-license", "LicenseRef-Derived"]
+    result = subprocess.run(command, text=True, capture_output=True,
+                            env={**os.environ, "PYTHONPATH": str(root / "src")})
+    assert result.returncode == 0, result.stderr
+    output = tmp_path / "tiles/2026/09/07/wrf5_20260907Z1200.mbtiles"
+    selection = {"variable": "wrf5_t2c", "product": "wrf5", "domain": "d01+d02",
+                 "valid_time": "2026-09-07T12:00:00Z"}
+
+    def value_at(store, lon, lat):
+        scale = 2 ** 8
+        gx = (lon + 180.0) / 360.0 * scale
+        gy = (1.0 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2.0 * scale
+        tile = decode_numeric_tile(store.get(8, int(gx), int(gy), selection, xyz=True))
+        px, py = int((gx % 1) * 8), int((gy % 1) * 8)
+        return tile.values[py * 8 + px]
+
+    with DataTiles(output, read_only=True) as store:
+        assert value_at(store, 0.05, 0.05) == pytest.approx(10.0)
+        assert value_at(store, 0.5, 0.5) == pytest.approx(20.0)
+        profile = next(p for p in store.content_profiles() if p["coordinates"]["domain"] == "d01+d02")
+        assert profile["schema"]["domain_composition"] == ["d01", "d02"]
 
 
 def test_local_source_identity_and_checksum(tmp_path):

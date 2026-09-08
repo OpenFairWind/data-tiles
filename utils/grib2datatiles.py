@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import Path
 
 from common import ConversionError, convert_dataset, require_scientific_stack, resolve_source
+
+LOGGER = logging.getLogger(__name__)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -66,7 +69,8 @@ def main() -> int:
                                         access_rights=args.access_rights)
             except ImportError as exc:
                 raise ConversionError("GRIB conversion requires cfgrib and ecCodes; install .[utils]") from exc
-        print(f"created {args.target}: {stats['variables']} variables, {stats['slices']} slices, {stats['tiles']} tiles")
+        LOGGER.info("created %s: %d variables, %d slices, %d tiles", args.target,
+                    stats["variables"], stats["slices"], stats["tiles"])
         return 0
     except ConversionError as exc:
         parser().error(str(exc))
@@ -74,4 +78,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     raise SystemExit(main())

@@ -1,3 +1,4 @@
+import ast
 import json
 import re
 import sqlite3
@@ -134,3 +135,22 @@ def test_specification_is_self_sufficient_and_documents_fallback():
     assert "How to cite DataTiles" in readme and "DYNAMO" in readme
     assert (ROOT/"docs/mbtiles-fallback.md").is_file()
     assert (ROOT/"docs/white-paper.md").is_file()
+
+
+def test_python_software_uses_logging_instead_of_print():
+    roots = (ROOT / "src", ROOT / "utils", ROOT / "docs/tutorial/examples")
+    offenders = []
+    for base in roots:
+        for path in base.rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            calls = [node.func for node in ast.walk(tree) if isinstance(node, ast.Call)]
+            direct_print = any(isinstance(call, ast.Name) and call.id == "print" for call in calls)
+            direct_stream_write = any(
+                isinstance(call, ast.Attribute) and call.attr == "write" and
+                isinstance(call.value, ast.Attribute) and call.value.attr in {"stdout", "stderr"} and
+                isinstance(call.value.value, ast.Name) and call.value.value.id == "sys"
+                for call in calls
+            )
+            if direct_print or direct_stream_write:
+                offenders.append(str(path.relative_to(ROOT)))
+    assert offenders == []

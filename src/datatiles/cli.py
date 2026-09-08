@@ -2,9 +2,24 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
+import sys
 from pathlib import Path
 
 from .store import DataTiles, DataTilesError
+
+LOGGER = logging.getLogger(__name__)
+
+
+def _configure_output_logging() -> None:
+    """Keep CLI records on stdout, including when main() is called in-process."""
+    for handler in list(LOGGER.handlers):
+        LOGGER.removeHandler(handler)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    LOGGER.addHandler(handler)
+    LOGGER.setLevel(logging.INFO)
+    LOGGER.propagate = False
 
 
 def coords(items: list[str]) -> dict[str, str]:
@@ -68,6 +83,7 @@ def parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    _configure_output_logging()
     args = parser().parse_args(argv)
     try:
         if args.command == "init":
@@ -84,11 +100,11 @@ def main(argv: list[str] | None = None) -> int:
             with DataTiles(args.file) as store:
                 store.add_variable_identifier(args.variable,args.scheme,args.identifier,scheme_version=args.scheme_version,uri=args.uri)
         elif args.command == "variables":
-            with DataTiles(args.file) as store: print(json.dumps({"variables":store.variables()},indent=2,ensure_ascii=False))
+            with DataTiles(args.file) as store: LOGGER.info(json.dumps({"variables":store.variables()},indent=2,ensure_ascii=False))
         elif args.command == "find-variable":
             with DataTiles(args.file) as store:
-                print(json.dumps({"standard_name":args.standard_name,"vocabulary":args.vocabulary,
-                                  "coordinate_set_ids":store.find_coordinate_sets_by_standard_name(args.standard_name,vocabulary=args.vocabulary)},indent=2))
+                LOGGER.info(json.dumps({"standard_name":args.standard_name,"vocabulary":args.vocabulary,
+                                        "coordinate_set_ids":store.find_coordinate_sets_by_standard_name(args.standard_name,vocabulary=args.vocabulary)},indent=2))
         elif args.command == "set-variable-policy":
             with DataTiles(args.file) as store: store.set_variable_semantics(args.policy)
         elif args.command == "add-crs":
@@ -112,15 +128,15 @@ def main(argv: list[str] | None = None) -> int:
             with DataTiles(args.file) as store:
                 store.export_mbtiles(args.output, coords(args.coord) if args.coord else None)
         elif args.command == "contents":
-            with DataTiles(args.file) as store: print(json.dumps({"contents":store.content_profiles()},indent=2,ensure_ascii=False))
+            with DataTiles(args.file) as store: LOGGER.info(json.dumps({"contents":store.content_profiles()},indent=2,ensure_ascii=False))
         elif args.command == "set-metadata":
             with DataTiles(args.file) as store: store.set_metadata(args.name,args.value)
         elif args.command == "validate":
             with DataTiles(args.file) as store: errors = store.validate(cf_table=args.cf_table, require_variable_semantics=args.require_variable_semantics)
             if errors:
-                for error in errors: print(error)
+                for error in errors: LOGGER.error(error)
                 return 1
-            print("valid")
+            LOGGER.info("valid")
         return 0
     except (DataTilesError, OSError) as exc:
         parser().error(str(exc))
@@ -128,4 +144,5 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     raise SystemExit(main())

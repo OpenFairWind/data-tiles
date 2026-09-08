@@ -77,6 +77,12 @@ Version 0.10 adds conservative physical-table MBTiles fallback, a self-sufficien
 
 Optional import utilities under `utils/` convert local or URL-identified NetCDF, GRIB2, and Zarr rectilinear grids into semantic DNT1 DataTiles. They preserve CF Standard Names when present, add GRIB2 crosswalk identifiers when available, retain source identity plus format-appropriate checksum provenance, and never pre-render scientific arrays as imagery. Install and run them in a dedicated Python virtual environment as described in `utils/README.md`; see `docs/import-utilities.md` for the import contract.
 
+The [Meteo@UniParthenope Leaflet demonstration](demo/weather/README.md)
+serves the generated WRF frame through the scientific tile endpoint. The
+repository Leaflet plugin decodes DNT1 in the browser and portrays the selected
+weather variable using declared palettes and the recorded zoom/domain mapping;
+it does not substitute stored image tiles.
+
 Dependency-free `geojson2datatiles`, `csv2datatiles`, `xml2datatiles`, `gpx2datatiles`, and `ndjson2datatiles` utilities convert feature sources to tiled GeoJSON while validating coordinates and recording the immutable source checksum and import provenance. The bundled `resources/ports.json` collection is an explicit, unofficial demonstration input and MUST NOT be treated as an authoritative port or navigation dataset.
 
 ## Raster and vector content

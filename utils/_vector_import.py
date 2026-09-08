@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import logging
 import math
 import os
 from pathlib import Path
@@ -12,6 +13,7 @@ from typing import Any, Iterable
 from datatiles import DataTiles, DataTilesError
 
 MAX_MERCATOR_LATITUDE = 85.05112878
+LOGGER = logging.getLogger(__name__)
 
 
 def add_common_arguments(parser: argparse.ArgumentParser) -> None:
@@ -135,10 +137,13 @@ def write_datatiles(features: list[dict[str, Any]], args: argparse.Namespace, *,
     except Exception:
         if output.exists(): output.unlink()
         raise
-    print(json.dumps({"output":os.fspath(output),"features":len(normalized),"tiles":len(tiles),"variable":variable}, sort_keys=True))
+    LOGGER.info(json.dumps({"output":os.fspath(output),"features":len(normalized),
+                            "tiles":len(tiles),"variable":variable}, sort_keys=True))
 
 
 def run(parser: argparse.ArgumentParser, loader: Any) -> int:
+    if not logging.getLogger().handlers:
+        logging.basicConfig(level=logging.INFO, format="%(message)s")
     args = parser.parse_args()
     try:
         write_datatiles(loader(args), args, source_format=parser.prog.replace("2datatiles", ""))

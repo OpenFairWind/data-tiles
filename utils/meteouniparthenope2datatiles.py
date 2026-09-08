@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import glob
 import hashlib
+import logging
 import math
 import os
 import re
@@ -34,6 +35,7 @@ PRODUCTS = ("wrf5", "ww33", "rms3", "wcm3", "aiq3")
 DOMAINS = ("d01", "d02", "d03")
 VARIABLE_ALIASES = {"U10": "U10M", "V10": "V10M"}
 COARSE_DOMAIN_REFERENCE_ZOOM = 6
+LOGGER = logging.getLogger(__name__)
 SOURCE_RE = re.compile(
     r"(?P<product>wrf5|ww33|rms3|wcm3|aiq3)_(?P<domain>d01|d02|d03)_"
     r"(?P<stamp>\d{8}Z\d{4})\.nc(?:$|[?#])",
@@ -135,13 +137,31 @@ def grid_resolution(dataset: Any) -> float:
     return resolution
 
 
+def native_zoom(dataset: Any) -> float:
+    """Estimate the Web Mercator zoom whose pixel spacing matches the source grid."""
+    np, _ = require_scientific_stack()
+    latitude = float(np.median(np.asarray(dataset.coords["latitude"].values, dtype="float64")))
+    metres_per_pixel_z0 = 156543.03392804097 * max(math.cos(math.radians(latitude)), 1e-6)
+    return math.log2(metres_per_pixel_z0 / grid_resolution(dataset))
+
+
+def optimal_zoom_range(records: list[tuple[str, SourceIdentity, Any, ResolvedSource]]) -> tuple[int, ...]:
+    """Choose the inclusive native-resolution range represented by available domains."""
+    estimates = [native_zoom(record[2]) for record in records]
+    start = max(0, min(22, int(math.floor(min(estimates)))))
+    end = max(start, min(22, int(math.ceil(max(estimates)))))
+    return tuple(range(start, end + 1))
+
+
 def domains_by_zoom(records: list[tuple[str, SourceIdentity, Any, ResolvedSource]],
-                    zooms: tuple[int, ...]) -> dict[int, tuple[str, SourceIdentity, Any, ResolvedSource]]:
+                    zooms: tuple[int, ...], *, native_anchors: bool = False
+                    ) -> dict[int, tuple[str, SourceIdentity, Any, ResolvedSource]]:
     """Select coarse-to-fine domains from measured resolution across the zoom range."""
     ordered = sorted(records, key=lambda record: (-grid_resolution(record[2]), record[1].domain))
     coarsest = grid_resolution(ordered[0][2])
-    anchors = [COARSE_DOMAIN_REFERENCE_ZOOM + math.log2(coarsest / grid_resolution(record[2]))
-               for record in ordered]
+    anchors = ([native_zoom(record[2]) for record in ordered] if native_anchors else
+               [COARSE_DOMAIN_REFERENCE_ZOOM + math.log2(coarsest / grid_resolution(record[2]))
+                for record in ordered])
     return {
         zoom: min(zip(anchors, ordered), key=lambda item: (abs(zoom - item[0]), item[0]))[1]
         for zoom in zooms
@@ -229,7 +249,7 @@ def _ensure_dimension(store: Any, name: str, value_type: str, **kwargs: Any) -> 
 def _ensure_container(store: Any) -> None:
     _ensure_dimension(store, "variable", "text", description="Semantic variable token")
     _ensure_dimension(store, "product", "text", description="Meteo@UniParthenope model/product identifier")
-    _ensure_dimension(store, "domain", "text", description="Meteo@UniParthenope grid domain (d01 coarse to d03 fine)")
+    _ensure_dimension(store, "domain", "text", description="Meteo@UniParthenope source domain or coarse+fine nested composition")
     _ensure_dimension(store, "valid_time", "datetime", axis="T", description="Forecast valid time in UTC")
     if not store.db.execute("SELECT 1 FROM datatiles_crs WHERE role='horizontal' AND authority='EPSG' AND code='3857'").fetchone():
         store.add_crs("horizontal", authority="EPSG", code="3857", uri="http://www.opengis.net/def/crs/EPSG/0/3857")
@@ -290,17 +310,53 @@ def _ensure_extra_dimensions(store: Any, dataset: Any, arrays: list[Any]) -> Non
                               description=f"Imported source dimension {dim}")
 
 
+def _prepared_grid(dataset: Any) -> tuple[Any, Any, Any, Any, tuple[float, float, float, float]]:
+    np, _ = require_scientific_stack()
+    lat = np.asarray(dataset.coords["latitude"].values, dtype="float64")
+    lon = np.asarray(dataset.coords["longitude"].values, dtype="float64")
+    if lat.ndim != 1 or lon.ndim != 1 or not np.all(np.isfinite(lat)) or not np.all(np.isfinite(lon)):
+        raise ConversionError("latitude and longitude must be finite one-dimensional coordinates")
+    lon = ((lon + 180.0) % 360.0) - 180.0
+    lat_order, lon_order = np.argsort(lat), np.argsort(lon)
+    lat, lon = lat[lat_order], lon[lon_order]
+    return lat, lon, lat_order, lon_order, (float(lon.min()), float(lat.min()), float(lon.max()), float(lat.max()))
+
+
+def _source_entity(store: Any, dataset: Any, resolved: ResolvedSource, identity: SourceIdentity, *,
+                   source_license: str, source_license_uri: str, source_attribution: str,
+                   access_rights: str, opendap: bool) -> str:
+    entity_id = f"source:meteouniparthenope:{identity.product}:{identity.domain}:sha256:{resolved.checksum}"
+    if not store.db.execute("SELECT 1 FROM datatiles_provenance_entities WHERE entity_id=?", (entity_id,)).fetchone():
+        store.add_provenance_entity(
+            entity_id, "dataset", f"Meteo@UniParthenope {identity.product}/{identity.domain} source",
+            uri=resolved.uri, checksum_algorithm=resolved.checksum_algorithm, checksum=resolved.checksum,
+            attributes={"source_kind": "NetCDF", "product": identity.product, "domain": identity.domain,
+                        "valid_time": _instant_text(identity.instant),
+                        "native_resolution_metres": grid_resolution(dataset),
+                        "acquisition": "OPeNDAP materialized snapshot" if opendap else "file bytes"},
+        )
+        store.add_rights("source", source_license, license_uri=source_license_uri,
+                         attribution_text=source_attribution, access_rights=access_rights,
+                         source_entity_id=entity_id, applies_to=resolved.identifier)
+    return entity_id
+
+
 def import_dataset(store: Any, dataset: Any, resolved: ResolvedSource, identity: SourceIdentity, *,
                    variables: list[str] | None, zoom: int, tile_size: int,
                    bbox: tuple[float, float, float, float] | None, max_tiles: int,
                    source_license: str, source_license_uri: str, source_attribution: str,
                    dataset_license: str, dataset_license_uri: str,
                    dataset_attribution: str | None, access_rights: str,
-                   opendap: bool) -> dict[str, int]:
+                   opendap: bool, zoom_selection: str = "explicit",
+                   fallback_domains: list[tuple[Any, ResolvedSource, SourceIdentity]] | None = None) -> dict[str, int]:
     np, _ = require_scientific_stack()
     from datatiles.numeric import encode_numeric_tile
 
-    validate_dataset_time(dataset, identity)
+    sources = list(fallback_domains or []) + [(dataset, resolved, identity)]
+    for source_dataset, _, source_identity in sources:
+        validate_dataset_time(source_dataset, source_identity)
+        if source_identity.product != identity.product or source_identity.instant != identity.instant:
+            raise ConversionError("nested domains must have the same product and valid time")
     names = available_variables(dataset, variables)
     if not names:
         raise ConversionError("no latitude/longitude data variables selected")
@@ -309,14 +365,13 @@ def import_dataset(store: Any, dataset: Any, resolved: ResolvedSource, identity:
         if not {"latitude", "longitude"}.issubset(da.dims):
             raise ConversionError(f"{da.name}: latitude and longitude must be array dimensions")
 
-    lat = np.asarray(dataset.coords["latitude"].values, dtype="float64")
-    lon = np.asarray(dataset.coords["longitude"].values, dtype="float64")
-    if lat.ndim != 1 or lon.ndim != 1 or not np.all(np.isfinite(lat)) or not np.all(np.isfinite(lon)):
-        raise ConversionError("latitude and longitude must be finite one-dimensional coordinates")
-    lon = ((lon + 180.0) % 360.0) - 180.0
-    lat_order, lon_order = np.argsort(lat), np.argsort(lon)
-    lat, lon = lat[lat_order], lon[lon_order]
-    native_bbox = (float(lon.min()), float(lat.min()), float(lon.max()), float(lat.max()))
+    grids = [(source_dataset, source_resolved, source_identity, _prepared_grid(source_dataset))
+             for source_dataset, source_resolved, source_identity in sources]
+    native_bbox = grids[0][3][4]
+    for _, _, _, grid in grids[1:]:
+        extent = grid[4]
+        native_bbox = (min(native_bbox[0], extent[0]), min(native_bbox[1], extent[1]),
+                       max(native_bbox[2], extent[2]), max(native_bbox[3], extent[3]))
     actual_bbox = native_bbox
     if bbox is not None:
         west, south, east, north = bbox
@@ -328,18 +383,12 @@ def import_dataset(store: Any, dataset: Any, resolved: ResolvedSource, identity:
             raise ConversionError("--bbox does not intersect the source grid")
     xs, ys = tile_ranges(actual_bbox, zoom)
 
-    entity_id = f"source:meteouniparthenope:{identity.product}:{identity.domain}:sha256:{resolved.checksum}"
-    if not store.db.execute("SELECT 1 FROM datatiles_provenance_entities WHERE entity_id=?", (entity_id,)).fetchone():
-        store.add_provenance_entity(
-            entity_id, "dataset", f"Meteo@UniParthenope {identity.product}/{identity.domain} source",
-            uri=resolved.uri, checksum_algorithm=resolved.checksum_algorithm, checksum=resolved.checksum,
-            attributes={"source_kind": "NetCDF", "product": identity.product, "domain": identity.domain,
-                        "valid_time": _instant_text(identity.instant),
-                        "acquisition": "OPeNDAP materialized snapshot" if opendap else "file bytes"},
-        )
-        store.add_rights("source", source_license, license_uri=source_license_uri,
-                         attribution_text=source_attribution, access_rights=access_rights,
-                         source_entity_id=entity_id, applies_to=resolved.identifier)
+    entity_ids = [
+        _source_entity(store, source_dataset, source_resolved, source_identity,
+                       source_license=source_license, source_license_uri=source_license_uri,
+                       source_attribution=source_attribution, access_rights=access_rights, opendap=opendap)
+        for source_dataset, source_resolved, source_identity, _ in grids
+    ]
     if not store.db.execute("SELECT 1 FROM datatiles_rights WHERE scope='dataset'").fetchone():
         store.add_rights("dataset", dataset_license, license_uri=dataset_license_uri,
                          attribution_text=dataset_attribution, access_rights=access_rights)
@@ -352,18 +401,28 @@ def import_dataset(store: Any, dataset: Any, resolved: ResolvedSource, identity:
         ).fetchone()
         if tuple(existing_license) != (dataset_license, dataset_license_uri):
             raise ConversionError("dataset licence does not match the existing same-time DataTiles file")
-    activity_id = f"activity:import:{identity.product}:{identity.domain}:z{zoom}:{resolved.checksum}"
+    domain_token = "+".join(source_identity.domain for _, _, source_identity, _ in grids)
+    source_digest = hashlib.sha256("|".join(source_resolved.checksum for _, source_resolved, _, _ in grids).encode()).hexdigest()
+    activity_id = f"activity:import-nested:{identity.product}:{domain_token}:z{zoom}:{source_digest}"
     if not store.db.execute(
         "SELECT 1 FROM datatiles_provenance_activities WHERE activity_id=?", (activity_id,)
     ).fetchone():
         store.add_provenance_activity(
-            activity_id, "conversion", f"Import {identity.product}/{identity.domain} NetCDF",
+            activity_id, "conversion", f"Import nested {identity.product}/{domain_token} NetCDF domains",
             software="DataTiles meteouniparthenope2datatiles",
-            parameters={"algorithm": "nearest-neighbour", "zoom": zoom, "tile_size": tile_size,
+            parameters={"algorithm": "nested-domain-finite-override-nearest-neighbour-v1",
+                        "zoom": zoom, "tile_size": tile_size,
                         "bbox": bbox, "source_crs": "EPSG:4326", "output_crs": "EPSG:3857",
-                        "product": identity.product, "domain": identity.domain, "opendap": opendap},
+                        "product": identity.product, "domains_coarse_to_fine": domain_token.split("+"),
+                        "opendap": opendap,
+                        "zoom_selection": zoom_selection,
+                        "native_resolution_metres": {
+                            source_identity.domain: grid_resolution(source_dataset)
+                            for source_dataset, _, source_identity, _ in grids
+                        }},
         )
-        store.add_provenance_relation(activity_id, "used", entity_id)
+        for entity_id in entity_ids:
+            store.add_provenance_relation(activity_id, "used", entity_id)
     _ensure_extra_dimensions(store, dataset, arrays)
 
     stats = {"variables": 0, "slices": 0, "tiles": 0}
@@ -383,29 +442,64 @@ def import_dataset(store: Any, dataset: Any, resolved: ResolvedSource, identity:
             planned = len(xs) * len(ys)
             if stats["tiles"] + planned > max_tiles:
                 raise ConversionError(f"conversion would exceed --max-tiles={max_tiles}")
-            values = np.asarray(slice_da.transpose("latitude", "longitude").values, dtype="float64")
-            values = values[lat_order, :][:, lon_order]
-            coordinates = {"variable": token, "product": identity.product, "domain": identity.domain,
+            domain_arrays = []
+            for (source_dataset, _, source_identity, grid), entity_id in zip(grids, entity_ids):
+                if da.name not in source_dataset.data_vars:
+                    continue
+                source_da = source_dataset[da.name]
+                source_unit = str(source_da.attrs.get("units") or "").strip() or None
+                if source_unit != unit:
+                    raise ConversionError(f"{da.name}: nested domain units differ")
+                selectors = {dim: value for dim, value in extra.items() if dim in source_da.coords}
+                selected = source_da.sel(selectors) if selectors else source_da
+                if "time" in selected.dims:
+                    selected = selected.isel(time=0)
+                lat, lon, lat_order, lon_order, extent = grid
+                values = np.asarray(selected.transpose("latitude", "longitude").values, dtype="float64")
+                values = values[lat_order, :][:, lon_order]
+                source_fill = source_da.attrs.get("_FillValue", source_da.attrs.get("missing_value", DEFAULT_NODATA))
+                domain_arrays.append((lat, lon, extent, values, source_fill, entity_id))
+            coordinates = {"variable": token, "product": identity.product, "domain": domain_token,
                            "valid_time": valid_time, **extra}
             first_coordinates = first_coordinates or dict(coordinates)
             stats["slices"] += 1
             for x in xs:
                 for y in ys:
                     pixel_lon, pixel_lat = tile_pixel_lon_lat(zoom, x, y, tile_size)
-                    iy, ix = nearest_indices(lat, pixel_lat), nearest_indices(lon, pixel_lon)
-                    tile = values[np.ix_(iy, ix)]
+                    tile = np.full((tile_size, tile_size), nodata, dtype="float64")
+                    contributors = []
                     west, south, east, north = actual_bbox
-                    inside = ((pixel_lat[:, None] >= south) & (pixel_lat[:, None] <= north) &
-                              (pixel_lon[None, :] >= west) & (pixel_lon[None, :] <= east))
-                    tile = np.where(inside & np.isfinite(tile) & (tile != fill), tile, nodata).astype("float32")
+                    requested = ((pixel_lat[:, None] >= south) & (pixel_lat[:, None] <= north) &
+                                 (pixel_lon[None, :] >= west) & (pixel_lon[None, :] <= east))
+                    for lat, lon, extent, values, source_fill, entity_id in domain_arrays:
+                        iy, ix = nearest_indices(lat, pixel_lat), nearest_indices(lon, pixel_lon)
+                        sampled = values[np.ix_(iy, ix)]
+                        west, south, east, north = extent
+                        valid = (requested &
+                                 (pixel_lat[:, None] >= south) & (pixel_lat[:, None] <= north) &
+                                 (pixel_lon[None, :] >= west) & (pixel_lon[None, :] <= east) &
+                                 np.isfinite(sampled) & (sampled != source_fill))
+                        if np.any(valid):
+                            tile = np.where(valid, sampled, tile)
+                            contributors.append(entity_id)
+                    tile = tile.astype("float32")
                     blob = encode_numeric_tile(tile.ravel().tolist(), tile.shape, dtype="float32",
                                                compression="zlib", nodata=nodata, unit=unit)
+                    content_schema = {
+                        "resampling": "nearest", "grid": "WebMercatorQuad", "tile_size": tile_size,
+                        "source_grid": "rectilinear latitude/longitude", "source_crs": "EPSG:4326",
+                        "source_kind": "Meteo@UniParthenope NetCDF",
+                    }
+                    if len(grids) > 1:
+                        content_schema.update({
+                            "domain_composition": domain_token.split("+"),
+                            "composition_algorithm": "finite finer-domain override; no boundary blending",
+                        })
                     store.put(zoom, x, y, blob, coordinates, xyz=True, data_type="raster",
                               media_type="application/vnd.datatiles.numeric", encoding="DNT1",
-                              schema={"resampling": "nearest", "grid": "WebMercatorQuad", "tile_size": tile_size,
-                                      "source_grid": "rectilinear latitude/longitude", "source_crs": "EPSG:4326",
-                                      "source_kind": "Meteo@UniParthenope NetCDF"})
-                    store.link_tile_provenance(zoom, x, y, coordinates, entity_id, xyz=True)
+                              schema=content_schema)
+                    for entity_id in contributors:
+                        store.link_tile_provenance(zoom, x, y, coordinates, entity_id, xyz=True)
                     stats["tiles"] += 1
         stats["variables"] += 1
     if store.db.execute("SELECT coordinate_set_id FROM datatiles_selected_slice WHERE singleton=1").fetchone()[0] is None:
@@ -426,8 +520,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--opendap", action="store_true", help="treat HTTP(S) sources as OPeNDAP datasets")
     p.add_argument("--variable", action="append", dest="variable", help="variable to import; repeatable")
     p.add_argument("--variables", action="append", help="comma-separated variables to import")
-    p.add_argument("--zoom", type=parse_zoom_range, default=parse_zoom_range("6"),
-                   metavar="Z|MIN,MAX", help="one zoom or an inclusive zoom range")
+    p.add_argument("--zoom", type=parse_zoom_range, metavar="Z|MIN,MAX",
+                   help="one zoom or an inclusive range; omit for metadata-derived native zooms")
     p.add_argument("--frame-storage", choices=("separate", "single"), default="separate",
                    help="write one product/time file per frame (default) or all frames to one file")
     p.add_argument("--tile-size", type=int, default=256)
@@ -492,14 +586,22 @@ def main() -> int:
                         _ensure_container(store)
                         frame_keys = sorted({(record[1].product, record[1].instant) for record in group})
                         used = []
+                        used_zooms = []
                         for frame_key in frame_keys:
                             frame = [record for record in group if (record[1].product, record[1].instant) == frame_key]
                             if variables and not any(available_variables(record[2], variables) for record in frame):
                                 continue
-                            chosen = domains_by_zoom(frame, args.zoom)
-                            for zoom in args.zoom:
+                            zooms = args.zoom or optimal_zoom_range(frame)
+                            chosen = domains_by_zoom(frame, zooms, native_anchors=args.zoom is None)
+                            ordered_domains = sorted(frame, key=lambda record: (-grid_resolution(record[2]), record[1].domain))
+                            for zoom in zooms:
                                 source, identity, dataset, resolved = chosen[zoom]
-                                used.append(f"z{zoom}:{identity.product}/{identity.domain}")
+                                primary_index = next(index for index, record in enumerate(ordered_domains)
+                                                     if record[1].domain == identity.domain)
+                                fallback_records = ordered_domains[max(0, primary_index - 1):primary_index]
+                                composite_domains = [record[1].domain for record in fallback_records] + [identity.domain]
+                                used.append(f"z{zoom}:{identity.product}/{'+'.join(composite_domains)}")
+                                used_zooms.append(zoom)
                                 stats = import_dataset(
                                     store, dataset, resolved, identity, variables=variables, zoom=zoom,
                                     tile_size=args.tile_size, bbox=tuple(args.bbox) if args.bbox else None,
@@ -510,13 +612,21 @@ def main() -> int:
                                     dataset_license_uri=args.dataset_license_uri,
                                     dataset_attribution=args.dataset_attribution,
                                     access_rights=args.access_rights, opendap=args.opendap,
+                                    zoom_selection=("explicit" if args.zoom is not None else
+                                                    "automatic:native-web-mercator-pixel-resolution-v1"),
+                                    fallback_domains=[(record[2], record[3], record[1])
+                                                      for record in fallback_records],
                                 )
                                 for key in totals:
                                     totals[key] += stats[key]
                         metadata = store.metadata()
-                        store.set_metadata("minzoom", str(min(min(args.zoom), int(metadata.get("minzoom", min(args.zoom))))))
-                        store.set_metadata("maxzoom", str(max(max(args.zoom), int(metadata.get("maxzoom", max(args.zoom))))))
+                        store.set_metadata("minzoom", str(min(min(used_zooms), int(metadata.get("minzoom", min(used_zooms))))))
+                        store.set_metadata("maxzoom", str(max(max(used_zooms), int(metadata.get("maxzoom", max(used_zooms))))))
                         store.set_metadata("datatiles:meteouniparthenope_domain_selection", ",".join(used))
+                        store.set_metadata(
+                            "datatiles:meteouniparthenope_zoom_selection",
+                            "explicit" if args.zoom is not None else "automatic:native-web-mercator-pixel-resolution-v1",
+                        )
                         store.set_metadata(
                             "datatiles:meteouniparthenope_frames",
                             ",".join(f"{product}:{_instant_text(instant)}" for product, instant in frame_keys),
@@ -529,8 +639,9 @@ def main() -> int:
                 finally:
                     staging.unlink(missing_ok=True)
         for target in outputs:
-            print(f"updated {target}")
-        print(f"total: {totals['variables']} variables, {totals['slices']} slices, {totals['tiles']} tiles")
+            LOGGER.info("updated %s", target)
+        LOGGER.info("total: %d variables, %d slices, %d tiles",
+                    totals["variables"], totals["slices"], totals["tiles"])
         return 0
     except (ConversionError, OSError, ValueError) as exc:
         parser().error(str(exc))
@@ -538,4 +649,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     raise SystemExit(main())

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DataTiles Weather · Leaflet</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/weather/assets/weather.css">
+</head>
+<body>
+  <header><div><strong>DataTiles Weather</strong><span>Meteo@UniParthenope · live DNT1 portrayal</span></div><label>Variable <select id="variable"></select></label></header>
+  <main><div id="map" aria-label="Interactive Leaflet weather map"></div><aside>
+    <h1 id="title">Loading scientific data…</h1>
+    <div id="legend"></div><p id="value">Select a map position to inspect a stored value.</p>
+    <dl><dt>Valid time</dt><dd id="time">—</dd><dt>Domain</dt><dd id="domain">—</dd><dt>Zoom</dt><dd id="zoom">—</dd><dt>Algorithm</dt><dd>Browser-side DNT1 decode; fixed declared palette; no stored image tiles.</dd></dl>
+    <p class="warning">Uncertified numerical weather-model demonstration. Not for navigation.</p>
+    <p id="status" role="status"></p>
+  </aside></main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module" src="/weather/assets/weather.js"></script>
+</body>
+</html>

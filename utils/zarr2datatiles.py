@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 from pathlib import Path
 
 from common import (
@@ -12,6 +13,8 @@ from common import (
     require_zarr_stack,
     resolve_zarr_source,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _storage_options(values: list[str] | None) -> dict[str, object]:
@@ -104,7 +107,8 @@ def main() -> int:
                         "storage_option_keys": sorted(storage_options),
                     },
                 )
-        print(f"created {args.target}: {stats['variables']} variables, {stats['slices']} slices, {stats['tiles']} tiles")
+        LOGGER.info("created %s: %d variables, %d slices, %d tiles", args.target,
+                    stats["variables"], stats["slices"], stats["tiles"])
         return 0
     except ConversionError as exc:
         parser().error(str(exc))
@@ -112,4 +116,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     raise SystemExit(main())
