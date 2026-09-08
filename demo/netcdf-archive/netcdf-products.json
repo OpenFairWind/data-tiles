@@ -1,0 +1,8 @@
+{
+  "demo_weather": {
+    "variables": [
+      "air_temperature",
+      "wind_speed"
+    ]
+  }
+}

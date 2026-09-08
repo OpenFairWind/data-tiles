@@ -40,6 +40,10 @@ TileJSON or an equivalent discovery document MUST advertise at least one tile UR
 
 Server portrayals MUST be reproducible from: source dataset/release identity, canonical tile address, portrayal recipe, and renderer profile/version. Cache identity MUST include every input capable of changing output pixels. A service SHOULD emit ETag and Cache-Control headers. A server portrayal remains derived data and SHOULD preserve a provenance link to its DataTiles source.
 
+### Direct scientific derivation from NetCDF archives
+
+An Online Delivery implementation MAY expose a numeric DNT1 tile derived on demand from a NetCDF source without first persisting a DataTiles container. Such a response is a scientific derivation, not a stored tile and not a portrayal. The service MUST identify the source frame, selected variable, source CRS, output tile-matrix CRS, sampling or resampling algorithm, nodata rule, unit, and every non-spatial selection. It MUST NOT silently select a non-singleton dimension, and it MUST NOT expose an undeclared variable. Implementations SHOULD restrict source resolution to a configured archive root and deterministic filename grammar, and SHOULD provide an integrity or release identifier suitable for cache and provenance identity.
+
 ## Security and deployment
 
 Online services MUST treat dimension values, layer IDs and dataset IDs as untrusted input; MUST prevent path traversal; MUST enforce DNT1 resource limits before allocation/decompression; and SHOULD constrain CORS to intended origins in production. Containers SHOULD mount scientific datasets read-only.

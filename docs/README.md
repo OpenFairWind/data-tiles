@@ -24,6 +24,7 @@ Executed UI evidence is registered separately for the [full scientific playgroun
 | [Vector tiles](vector-tiles.md) | multidimensional MVT/GeoJSON profiles and MBTiles projection |
 | [HTTP/OGC API](ogc-api.md) | resource model and interoperability scope |
 | [Online Delivery](online-delivery.md) | optional scientific and derived-portrayal HTTP profile, discovery, caching, concurrency, observability, and reference-server behavior |
+| [Direct NetCDF demo](../demo/netcdf-archive/README.md) | deterministic synthetic archive tree, configured variable allowlist, application launch, discovery, and DNT1 retrieval |
 | [Playground](playground.md) | OpenLayers scientific operations and limitations |
 | [DataTiles Store PWA](store-pwa.md) | Flask/SQLAlchemy institutional catalog, metadata search, role-based access, interactive preview, licence/safety acceptance, API-first CRUD, and authorized downloads |
 | [DataTiles Store API v1](store-api.md) | Bearer authentication, agreement workflow, catalog/search, preview/download, managers CRUD, identity administration, and audit endpoints |

@@ -3,6 +3,7 @@
 This is the reference implementation of the DataTiles Online Delivery profile. It serves both representations of the same logical tile:
 
 - `/api/datasets/{dataset}/tiles/{z}/{x}/{y}` - original scientific payload for client-side rendering;
+- `/api/netcdf/{product}/{domain}/{time}/tiles/{z}/{x}/{y}?variable={name}` - a DNT1 tile sampled directly from a configured NetCDF archive;
 - `/maps/{layer}/{z}/{x}/{y}.png|webp` - server-rendered portrayal;
 - `/maps/{layer}/tilejson.json` - discovery of both representations;
 - `/maps/{layer}/portrayal.json` - shared deterministic portrayal recipe.
@@ -25,6 +26,8 @@ The service reads containers without modifying them. Scientific responses preser
 | `GET /metrics` | process-local Prometheus text metrics |
 | `GET /api/datasets` | sorted identifiers of `.datatiles`, `.mbtiles`, and `.sqlite` files |
 | `GET /api/datasets/{dataset}/tiles/{z}/{x}/{y}` | exact stored scientific payload selected by query dimensions |
+| `GET /api/netcdf` | configured product allowlists and archive frames discovered on disk |
+| `GET /api/netcdf/{product}/{domain}/{time}/tiles/{z}/{x}/{y}?variable={name}` | numeric DNT1 sampled on demand from one NetCDF frame |
 | `GET /maps` | published layers, excluding the full portrayal definition |
 | `GET /maps/{layer}` | complete layer configuration plus portrayal SHA-256 |
 | `GET /maps/{layer}/dimensions` | declared dimensions and `fixed_dimensions` |
@@ -35,7 +38,25 @@ The service reads containers without modifying them. Scientific responses preser
 | `GET /maps/{layer}/portrayal.json` | deterministic portrayal recipe |
 | `GET /maps/{layer}/{z}/{x}/{y}.{format}` | derived XYZ PNG/WebP portrayal |
 
-FastAPI publishes the generated schema at `/openapi.json` and interactive documentation at `/docs`. The health probe does not validate configuration; readiness parses `layers.json` but does not open every container or render test tiles.
+FastAPI publishes the generated schema at `/openapi.json` and interactive documentation at `/docs`. The health probe does not validate configuration; readiness parses `layers.json` and the NetCDF product allowlist when present, but does not open every container or NetCDF frame or render test tiles.
+
+## Direct NetCDF archive delivery
+
+Set `DATATILES_NETCDF_ROOT` to the root of an immutable or operationally managed archive and `DATATILES_NETCDF_PRODUCTS` to a JSON product allowlist. The default locations are `/netcdf` and `/config/netcdf-products.json`; `server/netcdf-products.example.json` is a starting configuration. Each source file MUST have this exact layout:
+
+```text
+<root>/<product>/<domain>/archive/<YYYY>/<MM>/<DD>/<product>_<domain>_<YYYYMMDD>Z<hhmm>.nc
+```
+
+For example, `wrf5/d02/archive/2026/09/07/wrf5_d02_20260907Z1200.nc` is addressed as:
+
+```text
+/api/netcdf/wrf5/d02/20260907Z1200/tiles/6/34/24?variable=T2C
+```
+
+The product and variable MUST be declared in the configuration; an undeclared NetCDF variable is not served. The initial implementation accepts variables with rectilinear one-dimensional `latitude` and `longitude` dimensions and either no `time` dimension or a singleton `time` dimension. Other dimensions are rejected because selecting them implicitly would alter scientific meaning. Configure `DATATILES_NETCDF_TILE_SIZE` between 8 and 1024 (default 256).
+
+The response is an `application/vnd.datatiles.dnt1` numeric array, never an image. Values are CF-decoded by xarray, sampled at WebMercatorQuad pixel centres with the declared nearest-neighbour algorithm, converted to `float32`, and marked nodata outside the source extent. Response headers identify `EPSG:4326` as the source CRS, `EPSG:3857` as the output grid CRS, and `nearest-neighbour-at-Web-Mercator-pixel-centres-v1` as the algorithm. This is an on-demand scientific derivation; the service does not modify the NetCDF file or create an intermediate container. Operators MUST retain source identity, checksum, licence, provenance, datum, resolution, and limitations outside this transport response and MUST NOT describe the result as navigation-authoritative.
 
 Scientific responses have a content SHA-256 ETag and a 300-second public cache lifetime. Portrayals have an identity ETag: immutable `dataset_release` values receive `public, max-age=31536000, immutable`, while `mutable`, `latest`, or null receive `public, max-age=60`. Matching `If-None-Match` requests return `304`.
 
@@ -120,6 +141,9 @@ Copy `layers.example.json` to `layers.json` and place a DataTiles container such
 | `DATATILES_DATA_DIR` | `/data` | read-only dataset directory |
 | `DATATILES_LAYERS` | `/config/layers.json` | read-only layer configuration |
 | `DATATILES_CACHE_DIR` | `/cache` | writable derived-portrayal cache |
+| `DATATILES_NETCDF_ROOT` | `/netcdf` | read-only root of the product/domain/date NetCDF archive |
+| `DATATILES_NETCDF_PRODUCTS` | `/config/netcdf-products.json` | read-only per-product variable allowlist; a missing file disables direct NetCDF delivery |
+| `DATATILES_NETCDF_TILE_SIZE` | `256` | DNT1 tile width and height, constrained to 8–1024 pixels |
 | `DATATILES_PUBLIC_BASE` | request base URL | externally visible absolute base used in TileJSON |
 | `DATATILES_CORS_ORIGINS` | `*` | comma-separated exact allowed origins |
 | `DATATILES_PORT` | `8080` | Gunicorn bind port |
@@ -150,6 +174,8 @@ docker run --rm -p 8080:8080 \
   -v "$PWD/server/cache:/cache" \
   datatiles-server
 ```
+
+For direct NetCDF delivery, additionally mount the archive and allowlist read-only and set `DATATILES_NETCDF_ROOT` and `DATATILES_NETCDF_PRODUCTS` when their container paths differ from `/netcdf` and `/config/netcdf-products.json`.
 
 ## Docker Compose
 

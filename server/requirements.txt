@@ -4,3 +4,5 @@ gunicorn>=23,<24
 uvicorn-worker>=0.3,<1
 numpy>=2.0,<3
 Pillow>=12,<13
+xarray>=2025.1
+netCDF4>=1.7

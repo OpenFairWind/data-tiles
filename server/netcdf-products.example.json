@@ -1,0 +1,8 @@
+{
+  "wrf5": {
+    "variables": ["T2C", "RH2", "U10M", "V10M"]
+  },
+  "ww33": {
+    "variables": ["dpt", "hs", "lm", "fp", "dir", "period"]
+  }
+}

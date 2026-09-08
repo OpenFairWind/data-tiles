@@ -2,6 +2,8 @@
 
 The Online Delivery profile adds network publication without changing the scientific identity of a DataTiles tile. The same canonical `(z,x,y,{dimensions})` address MAY be exposed as a scientific representation for client-side portrayal and as one or more server-rendered portrayals.
 
+The reference server additionally supports direct, on-demand derivation of DNT1 numeric tiles from explicitly configured NetCDF archive frames. This transport extension does not make a NetCDF source a DataTiles container. A service using it MUST constrain variables through an allowlist, MUST identify the source and output CRSs and the sampling algorithm, MUST preserve nodata and units, MUST reject implicit selection of non-spatial dimensions, and MUST expose the result as scientific data rather than a portrayal. The reference path and derivation contract are documented in `server/README.md`.
+
 ## Rendering modes
 
 **Client rendering** returns the declared DataTiles content profile unchanged (for example DNT1). The client decodes values and applies the portrayal.
@@ -38,6 +40,8 @@ The reference implementation additionally exposes:
 - `GET /healthz` process liveness and `GET /readyz` layer-configuration readiness;
 - `GET /metrics` per-worker Prometheus text metrics;
 - `GET /api/datasets` available container identifiers;
+- `GET /api/netcdf` configured NetCDF products, variables, and archive frames;
+- `GET /api/netcdf/{product}/{domain}/{time}/tiles/{z}/{x}/{y}?variable={name}` on-demand numeric DNT1 derivation from one configured archive frame;
 - `GET /maps` published-layer discovery and `GET /maps/{layer}` layer detail with the canonical portrayal digest;
 - `GET /maps/{layer}/dimensions` fixed and declared dimensions;
 - `GET /maps/{layer}/times` declared `valid_time` values;
@@ -109,7 +113,7 @@ Consequently, the current reference portrayal renderer does not portray vector t
 
 Datasets SHOULD be immutable releases mounted read-only. The layer configuration and cache require separate read-only and writable mounts respectively. Public deployments SHOULD configure a concrete external `DATATILES_PUBLIC_BASE`, enumerate trusted `DATATILES_CORS_ORIGINS`, terminate TLS at a maintained proxy, restrict access to `/metrics` where operational data are sensitive, and place authorization enforcement in a gateway for protected products. CORS is not authorization.
 
-`/healthz` proves that the process can answer; `/readyz` additionally parses the layer file but does not open every dataset or pre-render tiles. Metrics are process-local, so a multi-worker deployment requires proxy-side aggregation or a Prometheus multiprocess strategy if totals are required. The emitted counters/gauges cover requests, renders, cache hits, cache misses, render-capacity rejections, cumulative render seconds, current in-flight renders, and worker PID identity.
+`/healthz` proves that the process can answer; `/readyz` additionally parses the layer file and the optional NetCDF product allowlist but does not open every dataset, inspect every archive frame, or pre-render tiles. Metrics are process-local, so a multi-worker deployment requires proxy-side aggregation or a Prometheus multiprocess strategy if totals are required. The emitted counters/gauges cover requests, renders, cache hits, cache misses, render-capacity rejections, cumulative render seconds, current in-flight renders, and worker PID identity.
 
 ## Catalogue and Store discovery
 

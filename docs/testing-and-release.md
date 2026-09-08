@@ -22,7 +22,7 @@ The suite covers storage and MBTiles views, physical-table MBTiles fallback and 
 1. The complete suite runs on Python 3.10, 3.11, 3.12, and 3.13 with branch coverage.
 2. Node.js parses the playground and every reusable Leaflet, OpenLayers, Google Maps, and shared-client module, then verifies live-rendering contracts.
 3. The scientific and feature import utilities are installed with their complete optional dependency stack, compiled, command-interface checked, and regression tested.
-4. The optional high-concurrency server and Store are installed with their declared extras, compiled, and tested, including discovery, portrayal, caching, conditional requests, and served-preview behavior.
+4. The optional high-concurrency server and Store are installed with their declared extras, compiled, and tested, including container and NetCDF-archive discovery, direct numeric derivation, portrayal, caching, conditional requests, and served-preview behavior.
 5. Both Docker Compose models are validated; the reference server and Store images are built, checked for non-root runtime identities, started, and queried through server health/readiness/map discovery and Store health endpoints.
 6. PEP 517 builds source and wheel distributions, Twine validates metadata, and a fresh environment installs and invokes the wheel.
 7. The controlled scientific fixture is rebuilt twice and checked for byte identity.

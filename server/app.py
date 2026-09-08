@@ -18,10 +18,15 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 from datatiles.store import DataTiles, DataTilesError
+from .netcdf import (OUTPUT_CRS, RESAMPLING, SOURCE_CRS, NetCDFTileError, archive_frames,
+                     archive_path, load_products, netcdf_tile)
 
 DATA_DIR = Path(os.environ.get("DATATILES_DATA_DIR", "/data"))
 LAYERS_FILE = Path(os.environ.get("DATATILES_LAYERS", "/config/layers.json"))
 CACHE_DIR = Path(os.environ.get("DATATILES_CACHE_DIR", "/cache"))
+NETCDF_ROOT = Path(os.environ.get("DATATILES_NETCDF_ROOT", "/netcdf"))
+NETCDF_PRODUCTS_FILE = Path(os.environ.get("DATATILES_NETCDF_PRODUCTS", "/config/netcdf-products.json"))
+NETCDF_TILE_SIZE = int(os.environ.get("DATATILES_NETCDF_TILE_SIZE", "256"))
 PUBLIC_BASE = os.environ.get("DATATILES_PUBLIC_BASE", "").rstrip("/")
 RENDER_THREADS = max(1, int(os.environ.get("DATATILES_RENDER_THREADS", str(min(8, (os.cpu_count() or 2) * 2)))))
 MAX_INFLIGHT_RENDERS = max(RENDER_THREADS, int(os.environ.get("DATATILES_MAX_INFLIGHT_RENDERS", str(RENDER_THREADS * 2))))
@@ -36,7 +41,7 @@ _metrics_lock = threading.Lock()
 _metrics = {"requests": 0, "renders": 0, "cache_hits": 0, "cache_misses": 0, "rejections": 0,
             "render_seconds": 0.0, "inflight": 0}
 
-app = FastAPI(title="DataTiles Online Reference Server", version="1.1.0")
+app = FastAPI(title="DataTiles Online Reference Server", version="1.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[x for x in os.environ.get("DATATILES_CORS_ORIGINS", "*").split(",")],
@@ -58,6 +63,10 @@ def load_layers() -> dict[str, Any]:
     if not isinstance(value, dict):
         raise RuntimeError("layers configuration must be a JSON object")
     return value
+
+
+def load_netcdf_products() -> dict[str, tuple[str, ...]]:
+    return load_products(NETCDF_PRODUCTS_FILE)
 
 
 def canonical_json(value: Any) -> str:
@@ -140,7 +149,7 @@ def shutdown_executor() -> None:
 def landing():
     return {
         "title": "DataTiles Online Reference Server",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "render_threads_per_worker": RENDER_THREADS,
         "max_inflight_renders_per_worker": MAX_INFLIGHT_RENDERS,
         "links": [{"rel": "layers", "href": "/maps"}, {"rel": "datasets", "href": "/api/datasets"}],
@@ -156,6 +165,7 @@ def healthz():
 def readyz():
     try:
         load_layers()
+        load_netcdf_products()
     except (OSError, ValueError, RuntimeError) as exc:
         raise HTTPException(503, f"layer configuration unavailable: {exc}") from exc
     return {"status": "ready"}
@@ -175,6 +185,45 @@ def datasets():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     ids = sorted({p.stem for p in DATA_DIR.iterdir() if p.suffix in {".datatiles", ".mbtiles", ".sqlite"}})
     return {"datasets": ids}
+
+
+@app.get("/api/netcdf")
+def netcdf_products():
+    products = load_netcdf_products()
+    return {"products": [{"id": name, "variables": list(variables),
+                           "frames": archive_frames(NETCDF_ROOT, name)}
+                          for name, variables in products.items()]}
+
+
+@app.get("/api/netcdf/{product}/{domain}/{stamp}/tiles/{z}/{x}/{y}")
+def netcdf_scientific_tile(product: str, domain: str, stamp: str, z: int, x: int, y: int,
+                           request: Request, variable: str):
+    try:
+        products = load_netcdf_products()
+        if product not in products:
+            raise HTTPException(404, f"NetCDF product {product!r} is not configured")
+        if variable not in products[product]:
+            raise HTTPException(404, f"variable {variable!r} is not configured for product {product!r}")
+        source = archive_path(NETCDF_ROOT, product, domain, stamp)
+        if not source.is_file():
+            raise HTTPException(404, "NetCDF frame not found")
+        tile = netcdf_tile(source, variable, z, x, y, tile_size=NETCDF_TILE_SIZE)
+    except NetCDFTileError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    etag = '"' + hashlib.sha256(tile.body).hexdigest() + '"'
+    headers = {
+        "ETag": etag,
+        "Cache-Control": "public, max-age=60",
+        "Access-Control-Expose-Headers": "ETag, DataTiles-Source-CRS, DataTiles-Output-CRS, DataTiles-Algorithm",
+        "DataTiles-Source-CRS": SOURCE_CRS,
+        "DataTiles-Output-CRS": OUTPUT_CRS,
+        "DataTiles-Algorithm": RESAMPLING,
+    }
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return Response(tile.body, media_type="application/vnd.datatiles.dnt1", headers=headers)
 
 
 @app.get("/api/datasets/{dataset}/tiles/{z}/{x}/{y}")
