@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from datatiles import DataTiles, encode_numeric_tile
-from demo.weather.app import weather_config
+from demo.weather.config import weather_config
 
 
 def test_weather_demo_discovers_numeric_frame_and_zoom_domains(tmp_path):

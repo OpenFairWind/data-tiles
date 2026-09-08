@@ -24,7 +24,7 @@ os.environ.setdefault("DATATILES_DATA_DIR", str(DATA_DIR))
 os.environ.setdefault("DATATILES_LAYERS", str(DEMO_DIR / "layers.json"))
 os.environ.setdefault("DATATILES_CACHE_DIR", str(ROOT / "data/meteouniparthenope/weather-cache"))
 
-from datatiles.store import DataTiles, DataTilesError  # noqa: E402
+from demo.weather.config import WeatherConfigurationError, weather_config  # noqa: E402
 from server.app import app  # noqa: E402
 
 LOGGER = logging.getLogger(__name__)
@@ -37,38 +37,6 @@ def dataset_path() -> Path:
     return path
 
 
-def weather_config(path: Path) -> dict[str, object]:
-    try:
-        with DataTiles(path, read_only=True) as store:
-            metadata = store.metadata()
-            profiles = store.content_profiles()
-    except (OSError, DataTilesError) as exc:
-        raise HTTPException(503, f"cannot read weather dataset: {exc}") from exc
-    bounds = [float(value) for value in metadata["bounds"].split(",")]
-    domain_by_zoom = {}
-    for item in metadata.get("datatiles:meteouniparthenope_domain_selection", "").split(","):
-        if not item:
-            continue
-        zoom, selection = item.split(":", 1)
-        domain_by_zoom[zoom.removeprefix("z")] = selection.split("/", 1)[1]
-    variables = sorted({str(profile["coordinates"]["variable"]) for profile in profiles})
-    times = sorted({str(profile["coordinates"]["valid_time"]) for profile in profiles})
-    generated_zooms = sorted(int(zoom) for zoom in domain_by_zoom)
-    if not generated_zooms:
-        raise HTTPException(503, "weather dataset does not declare a zoom/domain mapping")
-    return {
-        "dataset": path.stem,
-        "bounds": bounds,
-        "minzoom": generated_zooms[0],
-        "maxzoom": generated_zooms[-1],
-        "domainByZoom": domain_by_zoom,
-        "variables": variables,
-        "validTimes": times,
-        "crs": "EPSG:3857 tile matrix; Leaflet interface uses EPSG:4326 positions and XYZ rows",
-        "notice": "Uncertified numerical weather-model demonstration; not for navigation.",
-    }
-
-
 @app.get("/weather", include_in_schema=False)
 def weather_page():
     return FileResponse(DEMO_DIR / "index.html")
@@ -76,7 +44,10 @@ def weather_page():
 
 @app.get("/weather/config.json", include_in_schema=False)
 def weather_configuration():
-    return weather_config(dataset_path())
+    try:
+        return weather_config(dataset_path())
+    except WeatherConfigurationError as exc:
+        raise HTTPException(503, str(exc)) from exc
 
 
 app.mount("/weather/assets", StaticFiles(directory=DEMO_DIR / "static"), name="weather-assets")
