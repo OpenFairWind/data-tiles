@@ -66,6 +66,7 @@ datatiles-static-demo = "datatiles.static_demo:main"
 
 [tool.setuptools.package-data]
 datatiles = ["schema.sql", "profile-demo.html", "static-demo.html"]
+server = ["netcdf-preview.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

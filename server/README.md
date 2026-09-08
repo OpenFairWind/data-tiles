@@ -27,7 +27,7 @@ The service reads containers without modifying them. Scientific responses preser
 | `GET /api/datasets` | sorted identifiers of `.datatiles`, `.mbtiles`, and `.sqlite` files |
 | `GET /api/datasets/{dataset}/tiles/{z}/{x}/{y}` | exact stored scientific payload selected by query dimensions |
 | `GET /api/netcdf` | configured product allowlists and archive frames discovered on disk |
-| `GET /api/netcdf/{product}/{domain}/{time}/tiles/{z}/{x}/{y}?variable={name}` | numeric DNT1 sampled on demand from one NetCDF frame |
+| `GET /api/netcdf/{product}/{domain}/{time}/tiles/{z}/{x}/{y}?variable={name}` | numeric DNT1 sampled on demand from one NetCDF frame; optional `compression=none|zlib` |
 | `GET /maps` | published layers, excluding the full portrayal definition |
 | `GET /maps/{layer}` | complete layer configuration plus portrayal SHA-256 |
 | `GET /maps/{layer}/dimensions` | declared dimensions and `fixed_dimensions` |
@@ -56,7 +56,9 @@ For example, `wrf5/d02/archive/2026/09/07/wrf5_d02_20260907Z1200.nc` is addresse
 
 The product and variable MUST be declared in the configuration; an undeclared NetCDF variable is not served. The initial implementation accepts variables with rectilinear one-dimensional `latitude` and `longitude` dimensions and either no `time` dimension or a singleton `time` dimension. Other dimensions are rejected because selecting them implicitly would alter scientific meaning. Configure `DATATILES_NETCDF_TILE_SIZE` between 8 and 1024 (default 256).
 
-The response is an `application/vnd.datatiles.dnt1` numeric array, never an image. Values are CF-decoded by xarray, sampled at WebMercatorQuad pixel centres with the declared nearest-neighbour algorithm, converted to `float32`, and marked nodata outside the source extent. Response headers identify `EPSG:4326` as the source CRS, `EPSG:3857` as the output grid CRS, and `nearest-neighbour-at-Web-Mercator-pixel-centres-v1` as the algorithm. This is an on-demand scientific derivation; the service does not modify the NetCDF file or create an intermediate container. Operators MUST retain source identity, checksum, licence, provenance, datum, resolution, and limitations outside this transport response and MUST NOT describe the result as navigation-authoritative.
+The response is an `application/vnd.datatiles.dnt1` numeric array, never an image. Values are CF-decoded by xarray, sampled at WebMercatorQuad pixel centres with the declared nearest-neighbour algorithm, converted to `float32`, and marked nodata outside the source extent. DNT1 uses zlib by default; `compression=none` supports the dependency-free browser preview. Response headers identify `EPSG:4326` as the source CRS, `EPSG:3857` as the output grid CRS, and `nearest-neighbour-at-Web-Mercator-pixel-centres-v1` as the algorithm. This is an on-demand scientific derivation; the service does not modify the NetCDF file or create an intermediate container. Operators MUST retain source identity, checksum, licence, provenance, datum, resolution, and limitations outside this transport response and MUST NOT describe the result as navigation-authoritative.
+
+Opening `/` in a browser returns the interactive direct-NetCDF preview. Clients requesting JSON continue to receive the machine-readable service landing resource.
 
 Scientific responses have a content SHA-256 ETag and a 300-second public cache lifetime. Portrayals have an identity ETag: immutable `dataset_release` values receive `public, max-age=31536000, immutable`, while `mutable`, `latest`, or null receive `public, max-age=60`. Matching `If-None-Match` requests return `304`.
 

@@ -30,6 +30,8 @@ def configured_service(tmp_path, monkeypatch):
 
 def test_discovery_render_cache_and_conditionals(tmp_path, monkeypatch):
     client, cache = configured_service(tmp_path, monkeypatch)
+    assert "DataTiles · direct NetCDF delivery" in client.get("/", headers={"Accept": "text/html"}).text
+    assert client.get("/", headers={"Accept": "application/json"}).json()["version"] == "1.2.0"
     assert client.get("/healthz").status_code == 200
     assert client.get("/readyz").status_code == 200
     listing = client.get("/maps").json()["layers"]
@@ -98,3 +100,6 @@ def test_configured_netcdf_archive_serves_numeric_tiles(tmp_path, monkeypatch):
     assert client.get(response.request.url, headers={"If-None-Match": response.headers["etag"]}).status_code == 304
     assert client.get("/api/netcdf/wrf5/d01/20260907Z1200/tiles/0/0/0", params={"variable": "SECRET"}).status_code == 404
     assert client.get("/api/netcdf/wrf5/d01/not-a-time/tiles/0/0/0", params={"variable": "T2C"}).status_code == 422
+    plain = client.get("/api/netcdf/wrf5/d01/20260907Z1200/tiles/0/0/0",
+                       params={"variable": "T2C", "compression": "none"})
+    assert plain.status_code == 200 and decode_numeric_tile(plain.content).shape == (8, 8)

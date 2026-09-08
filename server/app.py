@@ -16,6 +16,7 @@ from typing import Any
 import numpy as np
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from PIL import Image
 from datatiles.store import DataTiles, DataTilesError
 from .netcdf import (OUTPUT_CRS, RESAMPLING, SOURCE_CRS, NetCDFTileError, archive_frames,
@@ -146,13 +147,16 @@ def shutdown_executor() -> None:
 
 
 @app.get("/")
-def landing():
+def landing(request: Request):
+    if "text/html" in request.headers.get("accept", ""):
+        return HTMLResponse((Path(__file__).with_name("netcdf-preview.html")).read_text(encoding="utf-8"))
     return {
         "title": "DataTiles Online Reference Server",
         "version": "1.2.0",
         "render_threads_per_worker": RENDER_THREADS,
         "max_inflight_renders_per_worker": MAX_INFLIGHT_RENDERS,
-        "links": [{"rel": "layers", "href": "/maps"}, {"rel": "datasets", "href": "/api/datasets"}],
+        "links": [{"rel": "layers", "href": "/maps"}, {"rel": "datasets", "href": "/api/datasets"},
+                  {"rel": "netcdf", "href": "/api/netcdf"}, {"rel": "preview", "href": "/", "type": "text/html"}],
     }
 
 
@@ -197,7 +201,7 @@ def netcdf_products():
 
 @app.get("/api/netcdf/{product}/{domain}/{stamp}/tiles/{z}/{x}/{y}")
 def netcdf_scientific_tile(product: str, domain: str, stamp: str, z: int, x: int, y: int,
-                           request: Request, variable: str):
+                           request: Request, variable: str, compression: str = "zlib"):
     try:
         products = load_netcdf_products()
         if product not in products:
@@ -207,7 +211,7 @@ def netcdf_scientific_tile(product: str, domain: str, stamp: str, z: int, x: int
         source = archive_path(NETCDF_ROOT, product, domain, stamp)
         if not source.is_file():
             raise HTTPException(404, "NetCDF frame not found")
-        tile = netcdf_tile(source, variable, z, x, y, tile_size=NETCDF_TILE_SIZE)
+        tile = netcdf_tile(source, variable, z, x, y, tile_size=NETCDF_TILE_SIZE, compression=compression)
     except NetCDFTileError as exc:
         raise HTTPException(422, str(exc)) from exc
     except RuntimeError as exc:

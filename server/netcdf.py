@@ -111,10 +111,13 @@ def _nearest(axis: np.ndarray, values: np.ndarray) -> np.ndarray:
     return np.where(np.abs(values - axis[lower]) <= np.abs(axis[upper] - values), lower, upper)
 
 
-def netcdf_tile(path: Path, variable: str, z: int, x: int, y: int, *, tile_size: int = 256) -> NetCDFTile:
+def netcdf_tile(path: Path, variable: str, z: int, x: int, y: int, *, tile_size: int = 256,
+                compression: str = "zlib") -> NetCDFTile:
     """Sample one configured CF-style rectilinear variable into a numeric DNT1 tile."""
     if not 8 <= tile_size <= 1024:
         raise NetCDFTileError("tile size must be between 8 and 1024")
+    if compression not in {"none", "zlib"}:
+        raise NetCDFTileError("compression must be none or zlib")
     try:
         import xarray as xr
     except ImportError as exc:  # pragma: no cover - exercised by deployment packaging
@@ -163,6 +166,6 @@ def netcdf_tile(path: Path, variable: str, z: int, x: int, y: int, *, tile_size:
         except (TypeError, ValueError):
             pass
     output = np.where(valid, sampled, DEFAULT_NODATA).astype(np.float32)
-    body = encode_numeric_tile(output.ravel().tolist(), output.shape, dtype="float32", compression="zlib",
+    body = encode_numeric_tile(output.ravel().tolist(), output.shape, dtype="float32", compression=compression,
                                nodata=DEFAULT_NODATA, scale=1.0, offset=0.0, unit=unit)
     return NetCDFTile(body, path, variable, unit, source_shape)

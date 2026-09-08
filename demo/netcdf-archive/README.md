@@ -11,7 +11,7 @@ python -m pip install -e '.[server]'
 python demo/netcdf-archive/prepare.py --root data/netcdf-archive-demo
 ```
 
-Start the application:
+Start the application, then open `http://127.0.0.1:8080/` for the interactive numeric preview:
 
 ```bash
 DATATILES_NETCDF_ROOT="$PWD/data/netcdf-archive-demo" \
